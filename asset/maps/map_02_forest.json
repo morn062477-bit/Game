@@ -1,0 +1,60 @@
+{
+  "compressionlevel": -1,
+  "width": 96,
+  "height": 70,
+  "tilewidth": 32,
+  "tileheight": 32,
+  "orientation": "orthogonal",
+  "renderorder": "right-down",
+  "type": "map",
+  "version": "1.10",
+  "tiledversion": "1.10.2",
+  "infinite": false,
+  "nextlayerid": 5,
+  "nextobjectid": 2,
+  "layers": [
+    {
+      "id": 10,
+      "name": "Background_Image",
+      "type": "imagelayer",
+      "image": "../backgrounds/map_02_forest_bg.png",
+      "imagewidth": 3072,
+      "imageheight": 2214,
+      "x": 0,
+      "y": 0,
+      "opacity": 1,
+      "visible": true
+    },
+    {
+      "id": 4,
+      "name": "Portals",
+      "type": "objectgroup",
+      "opacity": 1,
+      "visible": true,
+      "x": 0,
+      "y": 0,
+      "draworder": "topdown",
+      "objects": [
+        {
+          "id": 1,
+          "name": "To_Village",
+          "type": "",
+          "x": 0,
+          "y": 1088,
+          "width": 32,
+          "height": 64,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "target_map",
+              "type": "string",
+              "value": "map_01_village.tmx"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "tilesets": []
+}
