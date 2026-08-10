@@ -61,7 +61,7 @@ class MapScene extends Phaser.Scene {
 
     // 3. 플레이어 스폰 (start_point 오브젝트가 없으면 맵 중앙에 배치)
     this.ensurePlayerAnims();
-    const startPoint = map.findObject('objects', obj => obj.name === 'start_point')
+    const startPoint = map.findObject('Portals', obj => obj.name === 'start_point')
       || { x: map.widthInPixels / 2, y: map.heightInPixels / 2 };
     // 원본 스프라이트가 사람 키 기준으로 너무 커서(342px) 0.28배로 줄인다.
     // 배경 그림 속 문/의자 크기랑 비교해서 안 맞으면 이 숫자만 조절하면 된다.
@@ -74,7 +74,7 @@ class MapScene extends Phaser.Scene {
 
     // 4. 카메라 추적. 배경 그림이 매우 커서(3072px+) 축소해서 주변이 더 보이게 한다.
     this.cameras.main.startFollow(this.player);
-    this.cameras.main.setZoom(0.5);
+    this.cameras.main.setZoom(0.35);
     this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
     this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
 
@@ -88,9 +88,9 @@ class MapScene extends Phaser.Scene {
     this.cursors = this.input.keyboard.createCursorKeys();
     this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
 
-    this.interactText = this.add.text(400, 550, '', {
+    this.interactText = this.add.text(640, 670, '', {
       fontSize: '14px', fill: '#ffff00', backgroundColor: '#000000aa', padding: { x: 10, y: 5 }
-    }).setOrigin(0.5).setScrollFactor(0);
+    }).setOrigin(0.5).setScrollFactor(0).setVisible(false);
 
     this.isTalking = false;
     this.nearNPC = null;
@@ -110,7 +110,7 @@ class MapScene extends Phaser.Scene {
     ];
 
     suspectList.forEach(data => {
-      const npcPoint = map.findObject('objects', obj => obj.name === data.objName);
+      const npcPoint = map.findObject('Portals', obj => obj.name === data.objName);
       if (npcPoint) {
         const npc = this.add.rectangle(npcPoint.x, npcPoint.y, 28, 28, data.color);
         this.physics.add.existing(npc, true);
@@ -189,13 +189,13 @@ class MapScene extends Phaser.Scene {
 
     if (this.nearNPC) {
       const npcData = this.npcDataMap.get(this.nearNPC);
-      this.interactText.setText(`[SPACE] ${npcData.name}와 대화하기`);
+      this.interactText.setText(`[SPACE] ${npcData.name}와 대화하기`).setVisible(true);
 
       if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
         this.startDialogue(npcData);
       }
     } else {
-      this.interactText.setText('');
+      this.interactText.setText('').setVisible(false);
     }
   }
 

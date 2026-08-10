@@ -11,7 +11,7 @@
   "tiledversion": "1.10.2",
   "infinite": false,
   "nextlayerid": 5,
-  "nextobjectid": 2,
+  "nextobjectid": 4,
   "layers": [
     {
       "id": 10,
@@ -36,13 +36,13 @@
       "draworder": "topdown",
       "objects": [
         {
-          "id": 1,
+          "id": 2,
           "name": "To_Village",
           "type": "",
-          "x": 1504,
-          "y": 2208,
-          "width": 64,
-          "height": 32,
+          "x": 1456.65,
+          "y": 117.895,
+          "width": 151.953,
+          "height": 99.5556,
           "rotation": 0,
           "visible": true,
           "properties": [
@@ -52,6 +52,17 @@
               "value": "map_01_village.tmx"
             }
           ]
+        },
+        {
+          "id": 3,
+          "name": "start_point",
+          "type": "",
+          "x": 639.251,
+          "y": 1126.55,
+          "width": 1,
+          "height": 1,
+          "rotation": 0,
+          "visible": true
         }
       ]
     }

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="96" height="70" tilewidth="32" tileheight="32" infinite="0" nextlayerid="5" nextobjectid="2">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="96" height="70" tilewidth="32" tileheight="32" infinite="0" nextlayerid="5" nextobjectid="4">
  <layer id="1" name="Background" width="96" height="70">
   <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -222,14 +222,15 @@
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 </data>
  </layer>
-  <imagelayer id="10" name="Background_Image">
+ <imagelayer id="10" name="Background_Image">
   <image source="../backgrounds/map_03_farm_bg.png" width="3072" height="2214"/>
  </imagelayer>
-<objectgroup id="4" name="Portals">
-  <object id="1" name="To_Village" x="1504" y="2208" width="64" height="32">
+ <objectgroup id="4" name="Portals">
+  <object id="2" name="To_Village" x="1456.65" y="117.895" width="151.953" height="99.5556">
    <properties>
     <property name="target_map" value="map_01_village.tmx"/>
    </properties>
   </object>
+  <object id="3" name="start_point" x="639.251" y="1126.55" width="1" height="1"/>
  </objectgroup>
 </map>
