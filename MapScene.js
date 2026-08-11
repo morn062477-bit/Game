@@ -10,6 +10,22 @@ const MAP_FILES = {
   'map_08_body':    { bg: 'asset/backgrounds/map_08_body_bg.png',    json: 'asset/maps/map_08_body.json' },
 };
 
+// 오프닝 컷씬은 게임을 처음 시작했을 때 딱 한 번만 재생돼야 한다(맵 이동으로 씬이
+// 계속 restart되므로 씬 인스턴스 안에 두면 매번 다시 재생됨). 모듈 스코프에 둬서
+// 페이지를 새로고침하기 전까지 유지되게 한다.
+let hasPlayedIntro = false;
+
+// npc id -> 대화 대사(순서대로 한 줄씩 보여준다). 여기 없는 id는 대화창 자체에서
+// 기본 문구 하나만 뜬다. NPC를 하나씩 채워나갈 때 이 표에 항목만 추가하면 된다.
+const DIALOGUE_SCRIPTS = {
+  saint: [
+    '...아직도 그 광경이 눈에 선해요.',
+    '동상 옆에서... 이장님의... 그 모습을 보고는 정신이 아득해졌어요.',
+    '저는 그냥 아침 기도를 드리러 가던 길이었을 뿐인데...',
+    '부디, 부디 범인을 꼭 찾아주세요, 탐정님.',
+  ],
+};
+
 class MapScene extends Phaser.Scene {
   constructor() {
     super('MapScene');
@@ -66,19 +82,25 @@ class MapScene extends Phaser.Scene {
     this.load.image('lake-pond', `asset/decorations/lake_water.png?v=${v}`);
     this.load.image('lake-except-water', `asset/decorations/lake_expcept_water.png?v=${v}`);
 
-    // NPC 그림(맵 위에 서있는 용의자들). 전부 main.png와 같은 5열x4행 걷기 스프라이트시트라
-    // 같은 방식으로 자르고, 0번 프레임(정면 서 있는 자세)만 정지 이미지로 쓴다.
-    const npcFrame = { frameWidth: 204, frameHeight: 384 };
-    this.load.spritesheet('npc-saint', `asset/characters/용의자들-NPC/saint.png?v=${v}`, npcFrame);
+    // NPC 그림(맵 위에 서있는 용의자들). 전부 main.png와 같은 5열x4행 걷기 스프라이트시트지만,
+    // 그림마다 전체 캔버스 크기가 달라서(교체하면서 비율이 바뀐 것들이 있음) 한 프레임 크기도
+    // 파일별로 다르게 줘야 한다(5로 나눈 너비 x 4로 나눈 높이). 표준 크기(204x384, 1024x1536
+    // 캔버스)와 다른 파일만 별도로 표시해뒀다.
+    const npcFrame = { frameWidth: 204, frameHeight: 384 }; // 표준: 1024x1536
+    this.load.spritesheet('npc-saint', `asset/characters/용의자들-NPC/saint.png?v=${v}`, { frameWidth: 224, frameHeight: 350 }); // 1122x1402
     this.load.spritesheet('npc-doctor', `asset/characters/용의자들-NPC/doctor.png?v=${v}`, npcFrame);
     this.load.spritesheet('npc-boy', `asset/characters/용의자들-NPC/boy.png?v=${v}`, npcFrame);
-    this.load.spritesheet('npc-farmer_baby', `asset/characters/용의자들-NPC/farmer_baby.png?v=${v}`, npcFrame);
-    this.load.spritesheet('npc-girl', `asset/characters/용의자들-NPC/girl.png?v=${v}`, npcFrame);
+    this.load.spritesheet('npc-farmer_baby', `asset/characters/용의자들-NPC/farmer_baby.png?v=${v}`, { frameWidth: 250, frameHeight: 313 }); // 1254x1254
+    this.load.spritesheet('npc-girl', `asset/characters/용의자들-NPC/girl.png?v=${v}`, { frameWidth: 250, frameHeight: 313 }); // 1254x1254
     this.load.spritesheet('npc-farmer', `asset/characters/용의자들-farmer/farmer.png?v=${v}`, npcFrame);
     this.load.spritesheet('npc-hunter', `asset/characters/용의자들-hunter/hunter.png?v=${v}`, npcFrame);
     this.load.spritesheet('npc-painter', `asset/characters/용의자들-painter/painter.png?v=${v}`, npcFrame);
     this.load.spritesheet('npc-fisher', `asset/characters/용의자들-fisher/fisher.png?v=${v}`, npcFrame);
     this.load.spritesheet('npc-captain', `asset/characters/용의자들-NPC/captain.png?v=${v}`, npcFrame);
+    this.load.spritesheet('npc-wife', `asset/characters/용의자들-wife/wife.png?v=${v}`, npcFrame);
+
+    // 오프닝 컷씬 전용: 발견 장면에서 잠깐 블러 처리해서 띄우는 잘린 머리 그림.
+    this.load.image('cutscene-head', `asset/decorations/head.png?v=${v}`);
   }
 
   // 방향별 애니메이션은 씬이 재시작될 때마다 다시 만들면 "키가 이미 있다" 에러가 나서,
@@ -95,6 +117,24 @@ class MapScene extends Phaser.Scene {
       this.anims.create({
         key,
         frames: this.anims.generateFrameNumbers('player', { start: row * 5, end: row * 5 + 4 }),
+        frameRate: 10,
+        repeat: -1,
+      });
+    });
+  }
+
+  // NPC 그림도 main.png와 같은 5열x4행 걷기 스프라이트시트라, 같은 방식으로 걷기
+  // 애니메이션을 만들어둔다(컷씬에서 성녀가 자연스럽게 걷는 것처럼 보이도록).
+  // 키 이름은 "<텍스처키>-walk-<방향>"으로 플레이어 것과 겹치지 않게 구분한다.
+  ensureNpcAnims(texKey) {
+    if (this.anims.exists(`${texKey}-walk-down`)) return;
+    const dirs = [
+      { dir: 'down', row: 0 }, { dir: 'left', row: 1 }, { dir: 'right', row: 2 }, { dir: 'up', row: 3 },
+    ];
+    dirs.forEach(({ dir, row }) => {
+      this.anims.create({
+        key: `${texKey}-walk-${dir}`,
+        frames: this.anims.generateFrameNumbers(texKey, { start: row * 5, end: row * 5 + 4 }),
         frameRate: 10,
         repeat: -1,
       });
@@ -278,8 +318,21 @@ class MapScene extends Phaser.Scene {
       }
     }
     if (!startPoint) {
-      startPoint = map.findObject('Portals', obj => obj.name === 'start_point')
-        || { x: map.widthInPixels / 2, y: map.heightInPixels / 2 };
+      startPoint = map.findObject('Portals', obj => obj.name === 'start_point');
+    }
+    // 마을 맵은 start_point 오브젝트가 따로 없으면, 오프닝 컷씬에서 탐정이 도착하는
+    // detective_path의 마지막 지점을 기본 스폰 위치로 쓴다(컷씬이 재생 안 될 때도 같은
+    // 자리에서 시작하도록 통일).
+    if (!startPoint && this.currentMapKey === 'map_01_village') {
+      const detectivePathObj = (map.getObjectLayer('detective_path')?.objects || []).find(obj => obj.polyline || obj.polygon);
+      const detectivePathPoints = detectivePathObj?.polyline || detectivePathObj?.polygon;
+      if (detectivePathPoints?.length) {
+        const last = detectivePathPoints[detectivePathPoints.length - 1];
+        startPoint = { x: detectivePathObj.x + last.x, y: detectivePathObj.y + last.y };
+      }
+    }
+    if (!startPoint) {
+      startPoint = { x: map.widthInPixels / 2, y: map.heightInPixels / 2 };
     }
     // water 맵에서는 걸어다니는 캐릭터 대신 보트를 조작한다(스프라이트시트가 아니라 정지 그림 한 장).
     this.isBoat = this.currentMapKey === 'map_06_water';
@@ -326,12 +379,43 @@ class MapScene extends Phaser.Scene {
     // Shift를 누르고 있으면 달리기
     this.shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
 
-    this.interactText = this.add.text(640, 670, '', {
+    // 예전엔 (640,670)에 있었는데, 화면이 960x540이라 670은 화면 밖이라 안 보이고 있었다.
+    this.interactText = this.add.text(this.cameras.main.width / 2, this.cameras.main.height - 40, '', {
       fontSize: '14px', fill: '#ffff00', backgroundColor: '#000000aa', padding: { x: 10, y: 5 }
     }).setOrigin(0.5).setScrollFactor(0).setVisible(false);
 
+    // NPC 대화창. 컷씬 자막이랑 같은 가죽/청동 톤으로 만들어서 게임 전체 톤을 맞춘다.
+    // 화면 하단에 고정, 평소엔 숨김.
+    const dialogCam = this.cameras.main;
+    const dialogBoxW = dialogCam.width - 80;
+    const dialogBoxH = 190;
+    const dialogBoxX = 40;
+    const dialogBoxY = dialogCam.height - dialogBoxH - 20;
+    this.dialogueBox = this.add.graphics().setScrollFactor(0).setDepth(3000).setVisible(false);
+    this.dialogueBox.fillStyle(0x2a1f14, 0.95);
+    this.dialogueBox.fillRoundedRect(dialogBoxX, dialogBoxY, dialogBoxW, dialogBoxH, 12);
+    this.dialogueBox.lineStyle(4, 0xb8860b, 1);
+    this.dialogueBox.strokeRoundedRect(dialogBoxX, dialogBoxY, dialogBoxW, dialogBoxH, 12);
+    this.dialogueNameText = this.add.text(dialogBoxX + 20, dialogBoxY + 14, '', {
+      fontSize: '16px', fill: '#e8b34d', fontStyle: 'bold',
+    }).setScrollFactor(0).setDepth(3001).setVisible(false);
+    this.dialogueText = this.add.text(dialogBoxX + 20, dialogBoxY + 42, '', {
+      fontSize: '15px', fill: '#f2e6cf', wordWrap: { width: dialogBoxW - 40 },
+    }).setScrollFactor(0).setDepth(3001).setVisible(false);
+    this.dialogueHint = this.add.text(dialogBoxX + dialogBoxW - 20, dialogBoxY + dialogBoxH - 22, '', {
+      fontSize: '12px', fill: '#cbb994',
+    }).setOrigin(1, 0).setScrollFactor(0).setDepth(3001).setVisible(false);
+
     this.isTalking = false;
+    this.isCutscene = false;
     this.nearNPC = null;
+
+    // 8. 오프닝 컷씬. 맨 처음 마을에 들어왔을 때(포탈을 타고 온 게 아니라 게임을 막 시작했을
+    // 때)만 한 번 재생한다.
+    if (this.currentMapKey === 'map_01_village' && !this.fromMapKey && !hasPlayedIntro) {
+      hasPlayedIntro = true;
+      this.playIntroCutscene(map);
+    }
   }
 
   // --- 깜빡이는 빛(횃불 등) ---
@@ -392,6 +476,8 @@ class MapScene extends Phaser.Scene {
   setupNPCs(map) {
     this.npcGroup = this.physics.add.staticGroup();
     this.npcDataMap = new Map();
+    // id -> { sprite, label }. 컷씬에서 특정 NPC(예: 성녀)를 이름으로 찾아 움직이는 데 쓴다.
+    this.npcById = new Map();
 
     // npc 오브젝트 이름 -> 그림 텍스처 키. 아직 그림이 없는 id(예: captain, body)는
     // 여기 없으니 아래에서 색깔 네모로 대신 표시된다. "docter"는 맵 데이터의 오타지만
@@ -400,7 +486,7 @@ class MapScene extends Phaser.Scene {
       saint: 'npc-saint', docter: 'npc-doctor', boy: 'npc-boy',
       farmer_baby: 'npc-farmer_baby', girl: 'npc-girl',
       farmer: 'npc-farmer', hunter: 'npc-hunter', painter: 'npc-painter', fisher: 'npc-fisher',
-      captain: 'npc-captain',
+      captain: 'npc-captain', wife: 'npc-wife',
     };
     const isInteriorMap = this.currentMapKey === 'map_08_body' || this.currentMapKey === 'map_07_inter';
     const npcScale = isInteriorMap ? 0.58 : 0.48;
@@ -415,17 +501,19 @@ class MapScene extends Phaser.Scene {
       let npc;
       if (texKey && this.textures.exists(texKey)) {
         npc = this.add.sprite(obj.x, obj.y, texKey, 0).setScale(npcScale);
+        this.ensureNpcAnims(texKey);
       } else {
         npc = this.add.rectangle(obj.x, obj.y, 28, 28, palette[i % palette.length]);
       }
       this.physics.add.existing(npc, true);
       this.npcGroup.add(npc);
 
-      this.add.text(obj.x, obj.y - npc.displayHeight / 2 - 8, data.name, {
+      const label = this.add.text(obj.x, obj.y - npc.displayHeight / 2 - 8, data.name, {
         fontSize: '12px', fill: '#ffffff'
       }).setOrigin(0.5);
 
       this.npcDataMap.set(npc, data);
+      this.npcById.set(data.id, { sprite: npc, label, texKey: texKey && this.textures.exists(texKey) ? texKey : null });
     });
 
     this.physics.add.collider(this.player, this.npcGroup);
@@ -452,6 +540,23 @@ class MapScene extends Phaser.Scene {
   }
 
   update() {
+    // 컷씬 중에는 물리 바디가 꺼져있어서(body.enable = false) body.center가 갱신되지
+    // 않는다. 그 상태로 아래 walkable 체크를 하면 컷씬 시작 전 위치 기준으로 "벗어났다"고
+    // 오판해서, 컷씬에서 tween으로 옮긴 위치를 매 프레임 lastValidPos(꺼지기 전 위치)로
+    // 도로 되돌려버린다 — 그 결과 캐릭터가 실제로는 안 움직이고 제자리에서 애니메이션만
+    // 재생되는 것처럼 보였다. 그래서 이 체크 자체를 컷씬/대화 중엔 건너뛴다.
+    if (this.isTalking) {
+      this.player.body.setVelocity(0);
+      if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
+        this.advanceDialogue();
+      }
+      return;
+    }
+    if (this.isCutscene) {
+      this.player.body.setVelocity(0);
+      return;
+    }
+
     // 직전 프레임 이동 결과가 걸을 수 있는 영역을 벗어났으면 되돌린다(walkable 레이어가
     // 없는 맵에서는 isWalkable이 항상 true라 아무 효과 없음).
     const feet = this.player.body.center;
@@ -461,11 +566,6 @@ class MapScene extends Phaser.Scene {
     } else {
       this.lastValidPos.x = this.player.x;
       this.lastValidPos.y = this.player.y;
-    }
-
-    if (this.isTalking) {
-      this.player.body.setVelocity(0);
-      return;
     }
 
     const walkSpeed = 300;
@@ -516,9 +616,11 @@ class MapScene extends Phaser.Scene {
       this.depthSprites.forEach(spr => spr.setDepth(spr.y + spr.displayHeight));
     }
 
-    // 상호작용 가능한 거리 내 NPC 확인
+    // 상호작용 가능한 거리 내 NPC 확인. NPC는 충돌체가 있어서(스프라이트 전체 크기 그대로)
+    // 플레이어가 실제로 가까이 갈 수 있는 최소 거리가 이미 100 안팎이라, 예전 50짜리
+    // 기준으론 아무리 붙어도 절대 트리거가 안 됐다. 충돌로 붙을 수 있는 거리보다 넉넉하게 잡는다.
     this.nearNPC = null;
-    let minDistance = 50;
+    let minDistance = 140;
 
     this.npcGroup.getChildren().forEach(npc => {
       const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, npc.x, npc.y);
@@ -540,9 +642,288 @@ class MapScene extends Phaser.Scene {
     }
   }
 
+  // --- NPC 대화 ---
+  // DIALOGUE_SCRIPTS[npcData.id]에 대사가 있으면 한 줄씩, 없으면 기본 문구 하나만 보여준다.
+  // [SPACE]로 다음 줄로 넘기고, 마지막 줄에서 한 번 더 누르면 대화가 끝난다.
   startDialogue(npcData) {
     this.isTalking = true;
-    this.interactText.setText('');
-    console.log(`[대화/대전 진입] 대상: ${npcData.name} (${npcData.id})`);
+    this.interactText.setText('').setVisible(false);
+    this.currentNpcData = npcData;
+    this.currentNpcName = npcData.name;
+    this.dialogueLines = DIALOGUE_SCRIPTS[npcData.id] || [`(${npcData.name})... 별다른 말이 없다.`];
+    this.dialogueIndex = 0;
+    this.showDialogueLine();
+  }
+
+  showDialogueLine() {
+    const isLast = this.dialogueIndex >= this.dialogueLines.length - 1;
+    this.dialogueBox.setVisible(true);
+    this.dialogueNameText.setText(this.currentNpcName).setVisible(true);
+    this.dialogueText.setText(this.dialogueLines[this.dialogueIndex]).setVisible(true);
+    this.dialogueHint.setText(isLast ? '[SPACE] 닫기' : '[SPACE] 다음').setVisible(true);
+  }
+
+  advanceDialogue() {
+    this.dialogueIndex += 1;
+    if (this.dialogueIndex >= this.dialogueLines.length) {
+      this.endDialogue();
+    } else {
+      this.showDialogueLine();
+    }
+  }
+
+  endDialogue() {
+    this.isTalking = false;
+    this.dialogueBox.setVisible(false);
+    this.dialogueNameText.setVisible(false);
+    this.dialogueText.setVisible(false);
+    this.dialogueHint.setVisible(false);
+    this.launchNextGame(this.currentNpcData);
+  }
+
+  // 대화가 끝나면 이어서 켤 다음 게임/미니게임 진입 지점. 아직 실제 게임이 없어서 지금은
+  // 자리표시용 로그만 남긴다. 나중에 미니게임 Scene이 생기면 여기서
+  // this.scene.start('미니게임씬키', { npcId: npcData.id }) 식으로 넘겨주면 된다.
+  launchNextGame(npcData) {
+    console.log(`[다음 게임 진입 지점] ${npcData.name}(${npcData.id})와의 대화가 끝났습니다. 여기서 다음 게임을 시작하면 됩니다.`);
+  }
+
+  // --- 오프닝 컷씬 ---
+  // 1) 평화로운 마을 전경 -> 2) 성녀가 동상 옆에서 이장의 잘린 머리를 발견 ->
+  // 3) 주인공이 마을에 들어서며 조작권을 넘겨받는다. 플레이어는 컷씬 내내 숨겨두고
+  // 카메라 추적도 잠깐 끈다(성녀 쪽을 비춰야 하므로).
+  playIntroCutscene(map) {
+    this.isCutscene = true;
+    this.player.setVisible(false);
+    this.player.body.enable = false;
+    this.cameras.main.stopFollow();
+
+    const cam = this.cameras.main;
+    // 중세풍 양피지/가죽 패널 색. 어디서든 같은 톤을 쓰도록 상수로 뺀다.
+    const PANEL_FILL = 0x2a1f14;   // 어두운 가죽/양피지 색
+    const PANEL_BORDER = 0xb8860b; // 청동/황동 테두리
+
+    // 자막 배경은 Text의 backgroundColor 대신 Graphics로 그린 양피지풍 패널을 쓴다.
+    // 글자 크기가 바뀔 때마다 패널 크기도 다시 계산해서 그려야 하므로 helper로 뺀다.
+    const captionPanel = this.add.graphics().setScrollFactor(0).setDepth(1999).setAlpha(0);
+    const caption = this.add.text(cam.width / 2, cam.height / 2, '', {
+      fontSize: '38px', fill: '#f2e6cf', align: 'center', letterSpacing: 3,
+      padding: { x: 24, y: 16 },
+      wordWrap: { width: cam.width - 160 },
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(2000).setAlpha(0);
+    const drawCaptionPanel = () => {
+      const w = caption.width + 20;
+      const h = caption.height + 16;
+      const x = caption.x - w / 2;
+      const y = caption.y - h / 2;
+      captionPanel.clear();
+      captionPanel.fillStyle(PANEL_FILL, 0.92);
+      captionPanel.fillRoundedRect(x, y, w, h, 14);
+      captionPanel.lineStyle(4, PANEL_BORDER, 1);
+      captionPanel.strokeRoundedRect(x, y, w, h, 14);
+    };
+
+    // 자막 하나를 페이드인 -> 잠깐 유지 -> 페이드아웃까지 보여주고 끝나면 resolve되는 프로미스.
+    const showCaption = (text, holdMs) => new Promise(resolve => {
+      caption.setText(text);
+      drawCaptionPanel();
+      this.tweens.add({
+        targets: [captionPanel, caption], alpha: 1, duration: 400,
+        onComplete: () => {
+          this.time.delayedCall(holdMs, () => {
+            this.tweens.add({ targets: [captionPanel, caption], alpha: 0, duration: 400, onComplete: resolve });
+          });
+        },
+      });
+    });
+    const wait = ms => new Promise(resolve => this.time.delayedCall(ms, resolve));
+
+    // 발견 장면에서 잠깐 띄우는 블러 처리된 머리 그림. 배경/액자 없이 투명한 채로 그림에만
+    // 블러를 걸어서 화면 중앙에 띄운다. 평소엔 숨김.
+    const headImage = this.add.image(cam.width / 2, cam.height / 2, 'cutscene-head')
+      .setScrollFactor(0).setDepth(2100).setAlpha(0).setDisplaySize(480, 720);
+    // 렌더러에 따라(특히 캔버스 폴백) FX가 아예 없을 수 있어 실패해도 컷씬이 안 멈추게 감싼다.
+    try { headImage.postFX?.addBlur(0, 1, 1, 2, 0xffffff, 4); } catch (e) { console.warn('머리 이미지 블러 효과 실패:', e); }
+    const flashHeadImage = holdMs => new Promise(resolve => {
+      this.tweens.add({
+        targets: headImage, alpha: 0.95, duration: 150,
+        onComplete: () => {
+          this.time.delayedCall(holdMs, () => {
+            this.tweens.add({ targets: headImage, alpha: 0, duration: 500, onComplete: resolve });
+          });
+        },
+      });
+    });
+
+    const statue = map.findObject('Portals', obj => obj.name === 'deco_village_statue');
+    const saintEntry = this.npcById.get('saint');
+    // 도망칠 때 원래 서 있던 자리까지 되짚어가야 하므로 이동하기 전 원위치를 미리 기억해둔다.
+    const saintOriginalPos = saintEntry ? { x: saintEntry.sprite.x, y: saintEntry.sprite.y } : null;
+    const statueX = statue ? statue.x + statue.width / 2 : this.player.x;
+    const statueY = statue ? statue.y + statue.height / 2 - 40 : this.player.y;
+
+    // 성녀가 걸어갈 길. Tiled에 "saint_path"라는 오브젝트 레이어를 만들고 그 안에
+    // 폴리라인이나 폴리곤을 하나 그려두면 찍은 점들을 순서대로 따라가고(폴리곤이어도 시작점으로
+    // 돌아가는 닫는 선은 무시한다), 없으면 동상까지 직선으로 이동한다.
+    const pathObj = (map.getObjectLayer('saint_path')?.objects || []).find(obj => obj.polyline || obj.polygon);
+    const pathPoints = pathObj?.polyline || pathObj?.polygon;
+    const saintWaypoints = pathPoints
+      ? pathPoints.map(p => ({ x: pathObj.x + p.x, y: pathObj.y + p.y }))
+      : [{ x: statueX, y: statueY + 20 }];
+
+    // 성녀가 도망갈 길. Tiled에 "saint_flee_path" 레이어를 만들고 그 안에 폴리라인/폴리곤을
+    // 그려두면 그 경로로 도망가고, 없으면 왔던 길을 그대로 되짚어 원위치로 돌아간다.
+    const fleePathObj = (map.getObjectLayer('saint_flee_path')?.objects || []).find(obj => obj.polyline || obj.polygon);
+    const fleePathPoints = fleePathObj?.polyline || fleePathObj?.polygon;
+    const saintFleeWaypoints = fleePathPoints
+      ? fleePathPoints.map(p => ({ x: fleePathObj.x + p.x, y: fleePathObj.y + p.y }))
+      : null;
+
+    // 탐정이 걸어올 길. Tiled에 "detective_path"라는 오브젝트 레이어를 만들고 그 안에
+    // 폴리라인/폴리곤을 그려두면 그 경로를 따라오고, 없으면 농장 포탈 자리에서 곧장 걸어온다.
+    const farmPortal = map.findObject('Portals', obj => obj.name === 'To_Farm');
+    const detectivePathObj = (map.getObjectLayer('detective_path')?.objects || []).find(obj => obj.polyline || obj.polygon);
+    const detectivePathPoints = detectivePathObj?.polyline || detectivePathObj?.polygon;
+
+    // 웨이포인트를 순서대로 지나가되, 꺾이는 지점마다 뚝뚝 끊기지 않도록 전체 경로를
+    // 하나의 Path(직선 구간들의 연결)로 잇고 그 위를 단일 트윈으로 이동한다. 이전에
+    // Phaser.Curves.Spline을 썼더니 점들 사이를 곡선으로 부풀리며 지나가서(오버슈트) 그린
+    // 경로를 벗어나 이상하게 움직였다 — Path.lineTo는 직선 그대로 이어붙이면서도 구간 길이
+    // 비례로 시간을 배분해줘서(등속) 지점마다 트윈을 새로 시작할 때 생기던 멈칫거림 없이
+    // 정확히 그려둔 경로를 따라간다.
+    // label을 넘기면(NPC용) 이름표도 같이 따라 움직이고, texKey를 넘기면(플레이어는 생략,
+    // NPC는 ensureNpcAnims로 만들어둔 키 사용) 이동 방향에 맞는 걷기 애니메이션을 재생한다.
+    const walkPath = (sprite, points, speed, label = null, texKey = null) => new Promise(resolve => {
+      if (!points.length) { resolve(); return; }
+      const allPoints = [{ x: sprite.x, y: sprite.y }, ...points];
+      const path = new Phaser.Curves.Path(allPoints[0].x, allPoints[0].y);
+      for (let i = 1; i < allPoints.length; i += 1) path.lineTo(allPoints[i].x, allPoints[i].y);
+      const duration = Math.max(300, (path.getLength() / speed) * 1000);
+      const animPrefix = texKey ? `${texKey}-` : '';
+      // 다리 애니메이션 속도가 항상 고정 10fps였어서, 빠르게 움직일 때(도망칠 때 420 등)
+      // 발은 천천히 움직이는데 몸만 쭉 미끄러지듯 이동해 부자연스러워 보였다. 이동 속도에
+      // 비례해서 프레임레이트도 같이 올려준다.
+      const animFrameRate = Phaser.Math.Clamp(Math.round(speed / 16), 8, 30);
+      let lastDir = null;
+      const progress = { t: 0 };
+      this.tweens.add({
+        // 등속 이동(직선 구간 길이 비례 시간 배분)이 목적이라 easing 없이 선형으로 진행한다.
+        // easing을 넣으면 구간 중간에 부자연스럽게 빨라지거나 느려진다.
+        targets: progress, t: 1, duration,
+        onUpdate: () => {
+          const p = path.getPoint(progress.t);
+          const tangent = path.getTangent(progress.t);
+          const dir = Math.abs(tangent.x) > Math.abs(tangent.y) ? (tangent.x > 0 ? 'right' : 'left') : (tangent.y > 0 ? 'down' : 'up');
+          if (dir !== lastDir) {
+            lastDir = dir;
+            const animKey = `${animPrefix}walk-${dir}`;
+            if (sprite.anims && this.anims.exists(animKey)) sprite.anims.play({ key: animKey, frameRate: animFrameRate }, true);
+          }
+          sprite.setPosition(p.x, p.y);
+          label?.setPosition(p.x, p.y - sprite.displayHeight / 2 - 8);
+        },
+        onComplete: () => {
+          if (sprite.anims) {
+            sprite.anims.stop();
+            const idleRow = { down: 0, left: 1, right: 2, up: 3 }[lastDir || 'down'];
+            sprite.setFrame(idleRow * 5);
+          }
+          resolve();
+        },
+      });
+    });
+
+    (async () => {
+      cam.centerOn(this.player.x, this.player.y);
+      await showCaption('조용한 마을. 사람들은 여느 때처럼 하루를 보내고 있었다.', 2200);
+
+      if (saintEntry) {
+        cam.pan(statueX, statueY, 1400, 'Sine.easeInOut');
+        await walkPath(saintEntry.sprite, saintWaypoints, 240, saintEntry.label, saintEntry.texKey);
+        // 정지 물리 바디는 알아서 안 따라오므로 이동이 끝난 위치로 다시 맞춰준다.
+        saintEntry.sprite.body.reset(saintEntry.sprite.x, saintEntry.sprite.y);
+        // 도착하면 이동 방향과 상관없이 정면(아래쪽)을 보고 선다.
+        saintEntry.sprite.anims.stop();
+        saintEntry.sprite.setFrame(0);
+      }
+
+      cam.shake(300, 0.01);
+      cam.flash(400, 120, 0, 0);
+      await flashHeadImage(1600);
+      await showCaption('"꺄아악...!"', 1400);
+      await showCaption('성녀가 동상 옆에서 마을 이장의 잘린 머리를 발견했다.', 2200);
+
+      // 발견 직후 성녀는 도망친다. saint_flee_path를 그려두셨으면 그 경로로, 아니면
+      // saintWaypoints(도착 지점들만 있고 원위치는 없음)의 마지막 도착점(현재 위치)을 뺀
+      // 나머지를 거꾸로 돈 다음 원위치를 마지막 목적지로 붙여서 왔던 길을 되짚어간다.
+      if (saintEntry) {
+        const fleeWaypoints = saintFleeWaypoints
+          || [...saintWaypoints.slice(0, -1)].reverse().concat([saintOriginalPos]);
+        const fleePromise = walkPath(saintEntry.sprite, fleeWaypoints, 420, saintEntry.label, saintEntry.texKey)
+          .then(() => {
+            saintEntry.sprite.body.reset(saintEntry.sprite.x, saintEntry.sprite.y);
+          });
+        await Promise.all([showCaption('성녀는 비명을 지르며 달아났다...', 1800), fleePromise]);
+      }
+
+      cam.pan(this.player.x, this.player.y, 1200, 'Sine.easeInOut');
+      await wait(1200);
+      await showCaption('그리고 낯선 발걸음이 마을 어귀에 들어섰다...', 2000);
+      caption.destroy();
+      captionPanel.destroy();
+
+      // 탐정(주인공)이 아래 농장 쪽 길에서 걸어 올라온다. 직접 그려주신 detective_path가
+      // 있으면 그 경로만 그대로 따라가고, 경로의 마지막 점이 곧 실제 게임 시작 위치가 된다
+      // (원래 스폰 지점으로 보정하지 않음).
+      const finalX = this.player.x;
+      const finalY = this.player.y;
+      const absDetectivePath = detectivePathPoints?.map(p => ({ x: detectivePathObj.x + p.x, y: detectivePathObj.y + p.y }));
+      const entryPoint = absDetectivePath
+        ? absDetectivePath[0]
+        : (farmPortal ? { x: farmPortal.x + farmPortal.width / 2, y: farmPortal.y + farmPortal.height / 2 } : { x: finalX, y: finalY + 180 });
+      const detectiveWaypoints = absDetectivePath
+        ? absDetectivePath.slice(1)
+        : [{ x: finalX, y: finalY }];
+
+      this.player.setPosition(entryPoint.x, entryPoint.y);
+      this.player.setVisible(true);
+      // 카메라가 도착 지점에 고정된 채로 있으면, 그려주신 경로가 화면 축소 비율(0.35배)
+      // 대비 짧을 때 탐정이 걷는 게 잘 안 보여서 마치 도착 지점에서 바로 시작하는 것처럼
+      // 보인다. 걸어오는 동안은 카메라가 탐정을 따라가게 해서 이동이 확실히 보이게 한다.
+      cam.pan(entryPoint.x, entryPoint.y, 500, 'Sine.easeInOut');
+      await wait(500);
+      cam.startFollow(this.player);
+      await walkPath(this.player, detectiveWaypoints, 160);
+      cam.stopFollow();
+
+      // 좌우를 한 번씩 살핀다(walk-left/right 스프라이트시트의 첫 프레임을 정지 이미지로 사용).
+      const idleFrame = { down: 0, left: 5, right: 10, up: 15 };
+      this.player.setFrame(idleFrame.left);
+      await wait(500);
+      this.player.setFrame(idleFrame.right);
+      await wait(500);
+      this.player.setFrame(idleFrame.down);
+      await wait(300);
+
+      headImage.destroy();
+      this.player.body.enable = true;
+      this.player.body.reset(this.player.x, this.player.y);
+      this.lastValidPos = { x: this.player.x, y: this.player.y };
+      cam.startFollow(this.player);
+      this.isCutscene = false;
+    })().catch(err => {
+      // 컷씬 도중 뭔가 터지면 플레이어가 영원히 숨겨진 채로 남아 "탐정이 아예 없는"
+      // 상태가 될 수 있어서, 실패해도 최소한 조작권은 반드시 돌려준다.
+      console.error('오프닝 컷씬 중 오류 발생, 조작권을 돌려줍니다:', err);
+      caption.destroy();
+      captionPanel.destroy();
+      headImage.destroy();
+      this.player.setVisible(true);
+      this.player.body.enable = true;
+      this.player.body.reset(this.player.x, this.player.y);
+      this.lastValidPos = { x: this.player.x, y: this.player.y };
+      cam.startFollow(this.player);
+      this.isCutscene = false;
+    });
   }
 }

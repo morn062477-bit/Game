@@ -262,10 +262,10 @@
   </object>
  </objectgroup>
  <objectgroup id="6" name="npc">
-  <object id="19" name="girl" x="830" y="1820">
+  <object id="19" name="girl" x="874" y="1764">
    <point/>
   </object>
-  <object id="20" name="painter" x="2150" y="782">
+  <object id="20" name="painter" x="2114" y="742">
    <point/>
   </object>
  </objectgroup>

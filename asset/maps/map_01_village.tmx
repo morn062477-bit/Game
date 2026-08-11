@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="96" height="70" tilewidth="32" tileheight="32" infinite="0" nextlayerid="8" nextobjectid="45">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="96" height="70" tilewidth="32" tileheight="32" infinite="0" nextlayerid="11" nextobjectid="59">
  <editorsettings>
   <export target="map_01_village.json" format="json"/>
  </editorsettings>
@@ -228,7 +228,7 @@
  <imagelayer id="10" name="Background_Image">
   <image source="../backgrounds/map_01_village_bg.png" width="3072" height="2240"/>
  </imagelayer>
- <objectgroup id="4" name="Portals" visible="0">
+ <objectgroup id="4" name="Portals">
   <object id="1" name="To_Forest" x="1923.39" y="64.7275" width="90.909" height="51.697">
    <properties>
     <property name="target_map" value="map_02_forest.tmx"/>
@@ -271,7 +271,7 @@
    <ellipse/>
   </object>
   <object id="14" name="deco_village_blue_house" x="2026" y="790" width="664" height="547.6"/>
-  <object id="15" name="deco_village_statue" x="2026" y="1370" width="222" height="502.7"/>
+  <object id="15" name="deco_village_statue" x="2019.94" y="1297.27" width="222" height="502.7"/>
   <object id="40" name="To_inside" x="1042.42" y="1096.97" width="139.394" height="78.7879">
    <properties>
     <property name="target_map" value="map_07_inter.tmx"/>
@@ -294,13 +294,24 @@
    <ellipse/>
   </object>
   <object id="38" x="851.515" y="1396.97" width="103.03" height="133.333"/>
+  <object id="57" x="1809.09" y="1860.61" width="678.788" height="87.8788"/>
  </objectgroup>
  <objectgroup id="7" name="npc">
-  <object id="42" name="saint" x="1233.33" y="1263.64">
+  <object id="42" name="saint" x="1006.06" y="1566.67">
    <point/>
   </object>
-  <object id="43" name="docter" x="2475.76" y="1333.33">
+  <object id="43" name="docter" x="2069.7" y="1257.57">
    <point/>
+  </object>
+ </objectgroup>
+ <objectgroup id="8" name="saint_path">
+  <object id="54" x="1006.06" y="1530.3">
+   <polyline points="0,0 3.0303,109.091 745.455,106.061 742.424,178.788 900,178.788"/>
+  </object>
+ </objectgroup>
+ <objectgroup id="10" name="saint_flee_path">
+  <object id="55" x="1918.18" y="1615.15">
+   <polyline points="0,0 -384.848,-3.0303 -381.818,-360.606 -915.152,-354.545 -906.061,-130.303"/>
   </object>
  </objectgroup>
  <objectgroup id="5" name="walkable" visible="0">
@@ -310,5 +321,10 @@
   <object id="33" x="848.485" y="1409.09" width="100" height="115.152"/>
   <object id="34" x="948.485" y="1524.24"/>
   <object id="35" x="987.879" y="572.727"/>
+ </objectgroup>
+ <objectgroup id="9" name="detective_path">
+  <object id="56" x="1533.33" y="2042.43">
+   <polyline points="0,0 6.06061,-378.788 348.485,-375.758"/>
+  </object>
  </objectgroup>
 </map>

@@ -260,10 +260,10 @@
   <object id="15" x="464" y="-320"/>
  </objectgroup>
  <objectgroup id="6" name="npc">
-  <object id="16" name="fisher" x="720" y="1388">
+  <object id="16" name="fisher" x="754" y="1294">
    <point/>
   </object>
-  <object id="17" name="captain" x="1756" y="1248">
+  <object id="17" name="captain" x="1676" y="1568">
    <point/>
   </object>
  </objectgroup>
