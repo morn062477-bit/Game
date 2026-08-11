@@ -26,6 +26,12 @@ const DIALOGUE_SCRIPTS = {
   ],
 };
 
+// npc id -> 다빈치코드 미니게임 쪽 봇 이름(봇1~봇6). 대화가 끝나면 이 매핑으로 상대를
+// 정해서 미니게임을 시작한다. 아직 다 안 채워서 없는 id는 기본으로 봇1과 붙는다.
+const NPC_TO_BOT_NAME = {
+  saint: '봇1', docter: '봇2', hunter: '봇3', farmer: '봇4', painter: '봇5', fisher: '봇6',
+};
+
 class MapScene extends Phaser.Scene {
   constructor() {
     super('MapScene');
@@ -681,11 +687,14 @@ class MapScene extends Phaser.Scene {
     this.launchNextGame(this.currentNpcData);
   }
 
-  // 대화가 끝나면 이어서 켤 다음 게임/미니게임 진입 지점. 아직 실제 게임이 없어서 지금은
-  // 자리표시용 로그만 남긴다. 나중에 미니게임 Scene이 생기면 여기서
-  // this.scene.start('미니게임씬키', { npcId: npcData.id }) 식으로 넘겨주면 된다.
+  // 대화가 끝나면 다빈치코드 미니게임으로 전환한다. 미니게임 씬은 800x600 레이아웃을
+  // 그대로 가정하고 있어서(마을은 960x540) 여기서 캔버스 크기를 미리 바꿔준다 —
+  // 미니게임이 끝나고 "맵으로 돌아가기"를 누르면 DaVinciCodeScene 쪽에서 다시
+  // 960x540으로 되돌리고 returnMapKey로 넘어온다.
   launchNextGame(npcData) {
-    console.log(`[다음 게임 진입 지점] ${npcData.name}(${npcData.id})와의 대화가 끝났습니다. 여기서 다음 게임을 시작하면 됩니다.`);
+    const botName = NPC_TO_BOT_NAME[npcData.id] || '봇1';
+    this.scale.resize(800, 600);
+    this.scene.start('DaVinciCodeScene', { botName, returnMapKey: this.currentMapKey });
   }
 
   // --- 오프닝 컷씬 ---

@@ -1,0 +1,679 @@
+// 다빈치코드 미니게임 - 규칙 엔진 + 추리 AI
+// (파이썬으로 먼저 설계했던 game_logic.py를 JS로 포팅한 버전)
+//
+// 규칙 요약: 0~11 x 흑/백 = 24블록, 조커 없음, 1:1 대전.
+// 자기 차례에 한 개를 뽑아 왼쪽이 작은 수가 되도록 자기 패에 끼워 넣고,
+// 상대의 미공개 블록 하나를 지목해 숫자를 맞힌다. 맞히면 공개하고 계속 도전할지
+// 선택할 수 있고, 틀리면 방금 뽑은 자기 블록이 공개되며 턴이 넘어간다.
+// 패가 전부 공개된 사람이 패배한다.
+//
+// Scene(렌더링)은 이 파일의 로직에 전혀 손대지 않고, MatchEngine이 흘려보내는
+// "공개된 정보만 담긴" 이벤트와 Observation만 받아서 그린다. 그래야 사람 플레이어
+// 화면에 상대의 비공개 블록 값이 실수로 노출되는 일이 없다.
+
+const Color = { BLACK: 'black', WHITE: 'white' };
+
+function blockLabel(block) {
+  return `${block.color === Color.BLACK ? '흑' : '백'}${block.number}`;
+}
+
+function blockKey(b) {
+  return `${b.color}:${b.number}`;
+}
+
+function buildDeck() {
+  const deck = [];
+  for (let n = 0; n <= 11; n++) {
+    deck.push({ number: n, color: Color.BLACK });
+    deck.push({ number: n, color: Color.WHITE });
+  }
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  return deck;
+}
+
+function fullBlockPool() {
+  const pool = [];
+  for (let n = 0; n <= 11; n++) {
+    pool.push({ number: n, color: Color.BLACK });
+    pool.push({ number: n, color: Color.WHITE });
+  }
+  return pool;
+}
+
+const TieBreak = { BLACK_LEFT: 'black_left', WHITE_LEFT: 'white_left' };
+
+let _slotIdCounter = 1;
+
+class Hand {
+  constructor(tieBreak = TieBreak.BLACK_LEFT) {
+    this.slots = []; // { block, revealed, slotId }
+    this.tieBreak = tieBreak;
+  }
+
+  _sortKey(block) {
+    const colorRank = this.tieBreak === TieBreak.BLACK_LEFT
+      ? (block.color === Color.BLACK ? 0 : 1)
+      : (block.color === Color.WHITE ? 0 : 1);
+    return [block.number, colorRank];
+  }
+
+  _less(a, b) {
+    if (a[0] !== b[0]) return a[0] < b[0];
+    return a[1] < b[1];
+  }
+
+  insert(block) {
+    const key = this._sortKey(block);
+    let idx = 0;
+    for (let i = 0; i < this.slots.length; i++) {
+      if (this._less(this._sortKey(this.slots[i].block), key)) idx = i + 1;
+      else break;
+    }
+    this.slots.splice(idx, 0, { block, revealed: false, slotId: _slotIdCounter++ });
+    return idx;
+  }
+
+  reveal(index) {
+    this.slots[index].revealed = true;
+    return this.slots[index].block;
+  }
+
+  isRevealed(index) {
+    return this.slots[index].revealed;
+  }
+
+  hiddenIndices() {
+    const out = [];
+    this.slots.forEach((s, i) => { if (!s.revealed) out.push(i); });
+    return out;
+  }
+
+  allRevealed() {
+    return this.slots.length > 0 && this.slots.every((s) => s.revealed);
+  }
+
+  // 실제 게임에서 블록의 '색'은 항상 보인다(칠해진 색이니까) - 안 보이는 건 오직
+  // 찍혀 있는 '숫자'뿐이다. 그래서 미공개 상태여도 color는 그대로 노출하고
+  // number만 null로 감춘다. (판단 로직에서는 number == null을 '미공개'로 취급한다)
+  viewWithIds() {
+    return this.slots.map((s) => [
+      s.slotId,
+      s.revealed ? s.block : { color: s.block.color, number: null },
+    ]);
+  }
+}
+
+class Player {
+  constructor(name) {
+    this.name = name;
+    this.hand = new Hand();
+  }
+  insertDrawnBlock(block) {
+    return this.hand.insert(block);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 전략(Strategy)
+// ---------------------------------------------------------------------------
+
+class Strategy {
+  // index: 이 전략이 조종하는 플레이어가 MatchEngine.players 배열에서 몇 번(0/1)인지.
+  // 아이템 스킬이 engine.peekOpponentSlot() 같은 걸 호출할 때 자기 자신을 식별하는 데 쓴다.
+  bind(player, index) { this.player = player; this.index = index; }
+  attachEngine(engine) { this.engine = engine; }
+  onEvent(_event) {}
+  async chooseGuess(_obs) { throw new Error('chooseGuess not implemented'); }
+  async continueAfterCorrect(_obs) { throw new Error('continueAfterCorrect not implemented'); }
+  chooseTieBreakSide() { return TieBreak.BLACK_LEFT; }
+
+  // ---- 아이템 스킬용 훅 (기본은 전부 무동작 - 스킬 없는 전략은 신경 안 써도 됨) ----
+
+  // 대전 시작(초기 패 분배 직후) 1회 호출. '엿보기'처럼 시작하자마자 발동하는 스킬용.
+  onMatchStart(_obs) {}
+
+  // 오답을 내서 페널티(자기 블록 공개)를 받기 직전에 호출된다.
+  // 반환값으로 페널티를 바꿀 수 있다:
+  //   skipReveal: true          -> 이번엔 공개 자체를 건너뛴다 ('보험')
+  //   redirectIndex: number     -> drawnIndex 대신 이 위치를 공개한다 ('미끼')
+  //   retryWithoutPenalty: true -> 공개도 턴 종료도 없이 바로 다시 지목한다 ('동시타격')
+  async onWrongGuess(_obs, _drawnIndex) {
+    return { skipReveal: false, redirectIndex: null, retryWithoutPenalty: false };
+  }
+
+  // 자신의 블록이 (이유 불문하고) 방금 공개됐을 때 호출된다.
+  // true를 반환하면 그 자리에서 즉시 다시 비공개로 되돌린다 ('되감기').
+  async onOwnBlockRevealed(_obs, _index) {
+    return false;
+  }
+}
+
+class RandomStrategy extends Strategy {
+  constructor(continueProb = 0.5) {
+    super();
+    this.continueProb = continueProb;
+  }
+
+  async chooseGuess(obs) {
+    const hidden = obs.opponentView
+      .map(([, block], i) => (block.number === null ? i : null))
+      .filter((i) => i !== null);
+    const pos = hidden[Math.floor(Math.random() * hidden.length)];
+    const guess = Math.floor(Math.random() * 12); // 0~11
+    return [pos, guess];
+  }
+
+  async continueAfterCorrect(obs) {
+    const anyHidden = obs.opponentView.some(([, b]) => b.number === null);
+    if (!anyHidden) return false;
+    return Math.random() < this.continueProb;
+  }
+}
+
+// 공개 정보(정렬 제약 + 소거법 + 오답 이력)만으로 추리하는 AI.
+// 자세한 설계 근거는 game_logic.py의 DeductiveStrategy 주석 참고.
+class DeductiveStrategy extends Strategy {
+  constructor(continueThreshold = 0.34) {
+    super();
+    this.continueThreshold = continueThreshold;
+    this.excluded = new Map(); // slotId -> Set(number)
+  }
+
+  onEvent(event) {
+    if (event.kind === 'guess' && event.data.correct === false) {
+      const { slotId, guess } = event.data;
+      if (slotId != null && guess != null) {
+        if (!this.excluded.has(slotId)) this.excluded.set(slotId, new Set());
+        this.excluded.get(slotId).add(guess);
+      }
+    }
+  }
+
+  _propagateBounds(slots) {
+    const n = slots.length;
+    const lower = new Array(n).fill(0);
+    const upper = new Array(n).fill(11);
+    slots.forEach(([, block], i) => {
+      if (block.number != null) { lower[i] = block.number; upper[i] = block.number; }
+    });
+    for (let i = 1; i < n; i++) lower[i] = Math.max(lower[i], lower[i - 1]);
+    for (let i = n - 2; i >= 0; i--) upper[i] = Math.min(upper[i], upper[i + 1]);
+    return [lower, upper];
+  }
+
+  _candidates(obs) {
+    const slots = obs.opponentView;
+    const [lower, upper] = this._propagateBounds(slots);
+
+    const known = new Set();
+    obs.selfHand.slots.forEach((s) => known.add(blockKey(s.block)));
+    slots.forEach(([, b]) => { if (b.number != null) known.add(blockKey(b)); });
+    const unknown = fullBlockPool().filter((b) => !known.has(blockKey(b)));
+
+    const result = new Map(); // pos -> Map(number -> count)
+    slots.forEach(([slotId, block], i) => {
+      if (block.number != null) return;
+      const excl = this.excluded.get(slotId) || new Set();
+      const counter = new Map();
+      unknown.forEach((b) => {
+        if (b.number >= lower[i] && b.number <= upper[i] && !excl.has(b.number)) {
+          counter.set(b.number, (counter.get(b.number) || 0) + 1);
+        }
+      });
+      result.set(i, counter);
+    });
+    return result;
+  }
+
+  _bestPick(obs) {
+    let best = null; // [pos, number, confidence]
+    for (const [pos, counter] of this._candidates(obs)) {
+      let total = 0;
+      let bestNum = null;
+      let bestCount = -1;
+      for (const [num, count] of counter) {
+        total += count;
+        if (count > bestCount) { bestCount = count; bestNum = num; }
+      }
+      if (total === 0) continue;
+      const confidence = bestCount / total;
+      if (!best || confidence > best[2]) best = [pos, bestNum, confidence];
+    }
+    return best;
+  }
+
+  async chooseGuess(obs) {
+    const pick = this._bestPick(obs);
+    if (pick) return [pick[0], pick[1]];
+    // 안전장치: 근사 오차로 후보가 텅 빈 예외 상황 -> 무작위 대체
+    const hidden = obs.opponentView
+      .map(([, b], i) => (b.number === null ? i : null))
+      .filter((i) => i !== null);
+    const pos = hidden[Math.floor(Math.random() * hidden.length)];
+    const slotId = obs.opponentView[pos][0];
+    const excl = this.excluded.get(slotId) || new Set();
+    const all = Array.from({ length: 12 }, (_, i) => i); // 0~11
+    const pool = all.filter((n) => !excl.has(n));
+    const chosen = pool.length ? pool : all;
+    return [pos, chosen[Math.floor(Math.random() * chosen.length)]];
+  }
+
+  async continueAfterCorrect(obs) {
+    const anyHidden = obs.opponentView.some(([, b]) => b.number === null);
+    if (!anyHidden) return false;
+    const pick = this._bestPick(obs);
+    if (!pick) return false;
+    return pick[2] >= this.continueThreshold;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 아이템 스킬 - 용의자(봇)마다 자신을 상징하는 증거품 하나와 그에 얽힌 능력을 갖는다.
+// 대전당 1회만 발동한다.
+// ---------------------------------------------------------------------------
+
+const ITEM_SKILLS = {
+  lantern: { item: '랜턴', skill: '엿보기', description: '대전 시작 시, 상대 패의 미공개 블록 하나 숫자를 몰래 확인한다.' },
+  letter: { item: '편지', skill: '미끼', description: '오답으로 블록을 공개해야 할 때, 실제로 뽑았던 블록 대신 다른 미공개 블록을 대신 공개한다.' },
+  sickle: { item: '낫', skill: '동시타격', description: '오답이어도 이번 한 번은 페널티 없이 곧바로 다시 지목할 수 있다.' },
+  rope: { item: '밧줄', skill: '되감기', description: '자신의 블록이 어떤 이유로든 방금 공개됐을 때, 그 자리에서 즉시 다시 비공개로 되돌린다.' },
+  bloodyTowel: { item: '피묻은 수건', skill: '보험', description: '오답을 내도 이번 한 번은 블록이 공개되지 않는다.' },
+};
+
+// 6명 중 5명에게만 아이템을 배정한다 (아이템이 5개뿐이므로 1명은 순수 추리로만 승부).
+const BOT_ITEM_ASSIGNMENT = {
+  봇1: 'lantern',
+  봇2: 'letter',
+  봇3: 'sickle',
+  봇4: 'rope',
+  봇5: 'bloodyTowel',
+  봇6: null,
+};
+
+// DeductiveStrategy에 아이템 스킬 한 개를 얹은 버전. 스킬이 없으면(skillKey=null)
+// 순수 DeductiveStrategy와 완전히 동일하게 동작한다.
+class SkilledDeductiveStrategy extends DeductiveStrategy {
+  constructor(skillKey = null, continueThreshold = 0.34) {
+    super(continueThreshold);
+    this.skillKey = skillKey;
+    this.skillUsed = false;
+    this._insightSlotId = null;
+    this._insightNumber = null;
+  }
+
+  onMatchStart(obs) {
+    if (this.skillKey !== 'lantern' || this.skillUsed || !this.engine) return;
+    const hidden = obs.opponentView.filter(([, b]) => b.number === null);
+    if (hidden.length === 0) return;
+    const [slotId] = hidden[Math.floor(Math.random() * hidden.length)];
+    const pos = obs.opponentView.findIndex(([sid]) => sid === slotId);
+    const number = this.engine.peekOpponentSlot(this.index, pos);
+    if (number != null) {
+      this._insightSlotId = slotId;
+      this._insightNumber = number;
+      this.skillUsed = true;
+    }
+  }
+
+  // 엿보기로 알아낸 위치가 아직 미공개 상태로 남아있으면 100% 확신으로 그 자리를 고른다.
+  _bestPick(obs) {
+    if (this._insightSlotId != null) {
+      const idx = obs.opponentView.findIndex(([sid, b]) => sid === this._insightSlotId && b.number === null);
+      if (idx !== -1) return [idx, this._insightNumber, 1];
+      this._insightSlotId = null; // 이미 공개됐거나 더 이상 유효하지 않음
+    }
+    return super._bestPick(obs);
+  }
+
+  async onWrongGuess(obs, drawnIndex) {
+    if (this.skillUsed || !this.skillKey) return super.onWrongGuess(obs, drawnIndex);
+
+    if (this.skillKey === 'bloodyTowel') {
+      this.skillUsed = true;
+      return { skipReveal: true, redirectIndex: null, retryWithoutPenalty: false };
+    }
+
+    if (this.skillKey === 'letter') {
+      const hiddenOwn = obs.selfHand.slots
+        .map((s, i) => (!s.revealed && i !== drawnIndex ? i : null))
+        .filter((i) => i !== null);
+      if (hiddenOwn.length > 0) {
+        this.skillUsed = true;
+        const redirect = hiddenOwn[Math.floor(Math.random() * hiddenOwn.length)];
+        return { skipReveal: false, redirectIndex: redirect, retryWithoutPenalty: false };
+      }
+    }
+
+    if (this.skillKey === 'sickle') {
+      this.skillUsed = true;
+      return { skipReveal: false, redirectIndex: null, retryWithoutPenalty: true };
+    }
+
+    return super.onWrongGuess(obs, drawnIndex);
+  }
+
+  async onOwnBlockRevealed(_obs, _index) {
+    if (this.skillKey === 'rope' && !this.skillUsed) {
+      this.skillUsed = true;
+      return true;
+    }
+    return false;
+  }
+}
+
+// 사람 입력용 전략. UI에서 resolveGuess/resolveContinue를 호출할 때까지
+// chooseGuess/continueAfterCorrect가 반환하는 Promise가 대기 상태로 남는다.
+class HumanInputStrategy extends Strategy {
+  chooseGuess(obs) {
+    return new Promise((resolve) => {
+      this._resolveGuess = resolve;
+      if (this.onNeedGuess) this.onNeedGuess(obs);
+    });
+  }
+
+  continueAfterCorrect(obs) {
+    return new Promise((resolve) => {
+      this._resolveContinue = resolve;
+      if (this.onNeedContinueDecision) this.onNeedContinueDecision(obs);
+    });
+  }
+
+  resolveGuess(pos, number) {
+    if (this._resolveGuess) {
+      const r = this._resolveGuess;
+      this._resolveGuess = null;
+      r([pos, number]);
+    }
+  }
+
+  resolveContinue(shouldContinue) {
+    if (this._resolveContinue) {
+      const r = this._resolveContinue;
+      this._resolveContinue = null;
+      r(shouldContinue);
+    }
+  }
+}
+
+// 사람 플레이어용 전략 + 이전에 쓰러뜨린 용의자들에게서 얻은 아이템 스킬.
+// 봇과 달리 사람은 스킬을 "언제 쓸지" 직접 고르므로, 엔진 훅이 호출될 때마다
+// 곧바로 판단하지 않고 Scene에 UI로 물어본 뒤 그 결과로 Promise를 resolve한다.
+class SkilledHumanInputStrategy extends HumanInputStrategy {
+  constructor(unlockedSkillKeys = []) {
+    super();
+    this.unlockedSkillKeys = new Set(unlockedSkillKeys);
+    this.usedThisMatch = new Set();
+  }
+
+  hasSkill(key) {
+    return this.unlockedSkillKeys.has(key) && !this.usedThisMatch.has(key);
+  }
+
+  markUsed(key) {
+    this.usedThisMatch.add(key);
+  }
+
+  // '엿보기'는 반응형 훅이 아니라 자기 턴에 원할 때 직접 쓰는 액션이라
+  // Scene이 버튼 클릭 시 이 메서드를 직접 호출한다.
+  useInsight(pos) {
+    if (!this.hasSkill('lantern') || !this.engine) return null;
+    const number = this.engine.peekOpponentSlot(this.index, pos);
+    this.markUsed('lantern');
+    return number;
+  }
+
+  onWrongGuess(obs, drawnIndex) {
+    const usable = ['bloodyTowel', 'letter', 'sickle'].filter((k) => this.hasSkill(k));
+    if (usable.length === 0) return super.onWrongGuess(obs, drawnIndex);
+    return new Promise((resolve) => {
+      this._resolveWrongGuessDecision = resolve;
+      if (this.onNeedWrongGuessDecision) this.onNeedWrongGuessDecision(obs, usable, drawnIndex);
+    });
+  }
+
+  // Scene이 사용자의 선택(스킬 미사용 포함)을 반영해 최종 decision을 만들어 넘긴다.
+  resolveWrongGuessDecision(decision) {
+    if (this._resolveWrongGuessDecision) {
+      const r = this._resolveWrongGuessDecision;
+      this._resolveWrongGuessDecision = null;
+      r(decision || { skipReveal: false, redirectIndex: null, retryWithoutPenalty: false });
+    }
+  }
+
+  onOwnBlockRevealed(obs, index) {
+    if (!this.hasSkill('rope')) return super.onOwnBlockRevealed(obs, index);
+    return new Promise((resolve) => {
+      this._resolveRewindDecision = resolve;
+      if (this.onNeedRewindDecision) this.onNeedRewindDecision(obs, index);
+    });
+  }
+
+  resolveRewindDecision(useIt) {
+    if (this._resolveRewindDecision) {
+      const r = this._resolveRewindDecision;
+      this._resolveRewindDecision = null;
+      if (useIt) this.markUsed('rope');
+      r(!!useIt);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 매치 엔진 (1:1 한 판)
+// ---------------------------------------------------------------------------
+
+class MatchEngine {
+  static INITIAL_HAND_SIZE = 4;
+
+  // onEvent: Scene이 렌더링에 쓰는 콜백. 항상 "공개된 정보만" 담긴
+  // sanitize된 이벤트를 받는다 (전략들이 받는 것과 동일).
+  constructor(playerA, playerB, strategyA, strategyB, startingPlayer = 0, onEvent = null) {
+    this.players = [playerA, playerB];
+    this.strategies = [strategyA, strategyB];
+    strategyA.bind(playerA, 0);
+    strategyB.bind(playerB, 1);
+    strategyA.attachEngine(this);
+    strategyB.attachEngine(this);
+    this.deck = buildDeck();
+    this.turn = startingPlayer;
+    this.log = [];
+    this.winner = null;
+    this.onEventCallback = onEvent;
+    this._dealInitialHands();
+
+    // 대전 시작 시 1회 발동하는 스킬('엿보기' 등)을 위한 훅.
+    this.strategies.forEach((s, i) => {
+      s.onMatchStart(this._makeObservation(this.players[i], this.players[1 - i]));
+    });
+  }
+
+  // 아이템 스킬 '엿보기' 전용: 상대 패의 특정 위치를 공개하지 않고 몰래 확인한다.
+  // 값은 호출한 전략에게만 반환되고, 공개 이벤트에는 절대 담기지 않는다.
+  peekOpponentSlot(callerIndex, pos) {
+    const opponent = this.players[1 - callerIndex];
+    const slot = opponent.hand.slots[pos];
+    if (!slot) return null;
+    this._emit('skill_used', { player: this.players[callerIndex].name, skill: '엿보기' });
+    return slot.block.number;
+  }
+
+  _dealInitialHands() {
+    for (let i = 0; i < 2; i++) {
+      const p = this.players[i];
+      const strat = this.strategies[i];
+      p.hand.tieBreak = strat.chooseTieBreakSide();
+      for (let k = 0; k < MatchEngine.INITIAL_HAND_SIZE; k++) {
+        p.insertDrawnBlock(this.deck.pop());
+      }
+    }
+    this.log.push({ kind: 'setup', data: {} });
+  }
+
+  _emit(kind, data) {
+    const event = { kind, data };
+    this.log.push(event);
+    const pub = this._sanitize(event);
+    if (pub) {
+      if (this.onEventCallback) this.onEventCallback(pub);
+      this.strategies.forEach((s) => s.onEvent(pub));
+    }
+  }
+
+  _sanitize(event) {
+    const { kind, data } = event;
+    if (kind === 'draw') {
+      return { kind, data: { player: data.player } }; // 뽑은 값은 비공개
+    }
+    if (kind === 'guess') {
+      const pub = {
+        guesser: data.guesser, target: data.target, position: data.position,
+        slotId: data.slotId, guess: data.guess, correct: data.correct,
+      };
+      if (data.correct) pub.actual = data.actual; // 맞혔을 때만 값 공개
+      return { kind, data: pub };
+    }
+    return event; // reveal_*, match_over 등은 이미 전부 공개된 정보
+  }
+
+  _makeObservation(active, opponent) {
+    return {
+      selfName: active.name,
+      selfHand: active.hand,
+      opponentName: opponent.name,
+      opponentView: opponent.hand.viewWithIds(),
+      deckSize: this.deck.length,
+    };
+  }
+
+  isOver() { return this.winner !== null; }
+
+  async playFullMatch(maxTurns = 500) {
+    let turns = 0;
+    while (!this.isOver() && turns < maxTurns) {
+      await this.playTurn();
+      turns += 1;
+    }
+    if (!this.isOver()) throw new Error('최대 턴 수를 초과했습니다 (무한루프 방지용 안전장치).');
+    return this.winner;
+  }
+
+  async playTurn() {
+    if (this.isOver()) return;
+
+    const active = this.players[this.turn];
+    const opponent = this.players[1 - this.turn];
+    const strat = this.strategies[this.turn];
+    const opponentStrat = this.strategies[1 - this.turn];
+
+    let drawnIndex = null;
+    if (this.deck.length > 0) {
+      const block = this.deck.pop();
+      drawnIndex = active.insertDrawnBlock(block);
+      this._emit('draw', { player: active.name, block: blockLabel(block) });
+    } else {
+      this._emit('deck_empty', { player: active.name });
+    }
+
+    while (true) {
+      if (opponent.hand.hiddenIndices().length === 0) {
+        this._finish(active, opponent, 'no_hidden_blocks');
+        return;
+      }
+
+      const obs = this._makeObservation(active, opponent);
+      const [pos, guessNumber] = await strat.chooseGuess(obs);
+      const actual = opponent.hand.slots[pos].block;
+      const slotId = opponent.hand.slots[pos].slotId;
+      const correct = actual.number === guessNumber;
+
+      this._emit('guess', {
+        guesser: active.name, target: opponent.name, position: pos,
+        slotId, guess: guessNumber, actual: actual.number, correct,
+      });
+
+      if (correct) {
+        opponent.hand.reveal(pos);
+        this._emit('reveal_opponent', { player: opponent.name, position: pos, block: blockLabel(actual) });
+
+        // '되감기'(밧줄): 자기 블록이 상대에게 맞아서 공개됐어도 즉시 다시 숨길 수 있다.
+        const rehide1 = await opponentStrat.onOwnBlockRevealed(
+          this._makeObservation(opponent, active),
+          pos,
+        );
+        if (rehide1) {
+          opponent.hand.slots[pos].revealed = false;
+          this._emit('skill_used', { player: opponent.name, skill: '되감기' });
+        }
+
+        if (opponent.hand.allRevealed()) {
+          this._finish(active, opponent, 'all_blocks_revealed');
+          return;
+        }
+
+        const obs2 = this._makeObservation(active, opponent);
+        const keepGoing = await strat.continueAfterCorrect(obs2);
+        if (keepGoing) continue;
+        break;
+      } else {
+        const decision = drawnIndex !== null
+          ? await strat.onWrongGuess(this._makeObservation(active, opponent), drawnIndex)
+          : { skipReveal: false, redirectIndex: null, retryWithoutPenalty: false };
+
+        // '동시타격'(낫): 페널티 없이 곧바로 다시 지목한다. 스킬은 여기서 이미 소모됨.
+        if (decision.retryWithoutPenalty) {
+          this._emit('skill_used', { player: active.name, skill: '동시타격' });
+          continue;
+        }
+
+        if (decision.skipReveal) {
+          // '보험'(피묻은 수건): 공개 자체를 건너뛴다.
+          this._emit('skill_used', { player: active.name, skill: '보험' });
+        } else {
+          // '미끼'(편지)가 지정한 위치가 있으면 그쪽을, 없으면 원래 뽑았던 블록을 공개한다.
+          const targetIndex = decision.redirectIndex != null ? decision.redirectIndex : drawnIndex;
+          if (decision.redirectIndex != null) {
+            this._emit('skill_used', { player: active.name, skill: '미끼' });
+          }
+
+          if (targetIndex !== null && !active.hand.isRevealed(targetIndex)) {
+            const revealedBlock = active.hand.reveal(targetIndex);
+            this._emit('reveal_self', { player: active.name, position: targetIndex, block: blockLabel(revealedBlock) });
+
+            const rehide2 = await strat.onOwnBlockRevealed(this._makeObservation(active, opponent), targetIndex);
+            if (rehide2) {
+              active.hand.slots[targetIndex].revealed = false;
+              this._emit('skill_used', { player: active.name, skill: '되감기' });
+            }
+
+            if (active.hand.allRevealed()) {
+              this._finish(opponent, active, 'all_blocks_revealed');
+              return;
+            }
+          } else {
+            this._emit('reveal_self_skipped', { player: active.name, reason: 'no_block_drawn_this_turn' });
+          }
+        }
+        break;
+      }
+    }
+
+    this.turn = 1 - this.turn;
+  }
+
+  _finish(winner, loser, reason) {
+    this.winner = winner;
+    this._emit('match_over', { winner: winner.name, loser: loser.name, reason });
+  }
+}
+
+const BOT_NAMES = ['봇1', '봇2', '봇3', '봇4', '봇5', '봇6'];
+
+// botName에 해당하는 아이템 스킬을 자동으로 얹어서 전략을 만든다.
+// BOT_ITEM_ASSIGNMENT에 없는 이름이거나 값이 null이면(봇6) 순수 추리 AI가 된다.
+function makeBotStrategy(botName) {
+  const skillKey = BOT_ITEM_ASSIGNMENT[botName] ?? null;
+  return new SkilledDeductiveStrategy(skillKey, 0.34);
+}
