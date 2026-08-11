@@ -1,8 +1,8 @@
 // Phaser 게임 설정
 const config = {
   type: Phaser.AUTO,           // WebGL 되면 WebGL, 안 되면 Canvas
-  width: 1280,                 // 게임 화면 가로
-  height: 720,                 // 게임 화면 세로
+  width: 960,                  // 게임 화면 가로 (축소)
+  height: 540,                 // 게임 화면 세로 (축소, 1280x720과 같은 16:9 비율)
   backgroundColor: '#1a1a2e', // 배경색 (어두운 남색)
 
   // 물리 엔진 설정 (충돌 처리용)

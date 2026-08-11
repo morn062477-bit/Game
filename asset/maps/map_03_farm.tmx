@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="96" height="70" tilewidth="32" tileheight="32" infinite="0" nextlayerid="5" nextobjectid="4">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="96" height="70" tilewidth="32" tileheight="32" infinite="0" nextlayerid="6" nextobjectid="28">
  <layer id="1" name="Background" width="96" height="70">
   <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -223,14 +223,57 @@
 </data>
  </layer>
  <imagelayer id="10" name="Background_Image">
-  <image source="../backgrounds/map_03_farm_bg.png" width="3072" height="2214"/>
+  <image source="../backgrounds/map_03_farm_bg.png" width="6144" height="4428"/>
  </imagelayer>
  <objectgroup id="4" name="Portals">
-  <object id="2" name="To_Village" x="1456.65" y="117.895" width="151.953" height="99.5556">
+  <object id="2" name="To_Village" x="2916.68" y="1.93566" width="294.267" height="99.5556">
    <properties>
     <property name="target_map" value="map_01_village.tmx"/>
    </properties>
   </object>
-  <object id="3" name="start_point" x="639.251" y="1126.55" width="1" height="1"/>
+  <object id="12" name="start_point" x="3048.02" y="448.933">
+   <point/>
+  </object>
+  <object id="14" name="fire" x="3360.19" y="300.44" width="152.855" height="105.418">
+   <ellipse/>
+  </object>
+  <object id="15" name="fire" x="2664.43" y="274.085" width="152.855" height="105.418">
+   <ellipse/>
+  </object>
+  <object id="16" name="fire" x="2796.2" y="1085.8" width="152.855" height="105.418">
+   <ellipse/>
+  </object>
+  <object id="17" name="fire" x="3238.96" y="2013.48" width="152.855" height="105.418">
+   <ellipse/>
+  </object>
+  <object id="18" name="fire" x="2748.76" y="2472.04" width="152.855" height="105.418">
+   <ellipse/>
+  </object>
+  <object id="19" name="fire" x="1805.28" y="2429.87" width="152.855" height="105.418">
+   <ellipse/>
+  </object>
+  <object id="20" name="fire" x="524.453" y="2071.46" width="152.855" height="105.418">
+   <ellipse/>
+  </object>
+  <object id="21" name="fire" x="545.536" y="2956.96" width="152.855" height="105.418">
+   <ellipse/>
+  </object>
+  <object id="22" name="fire" x="608.787" y="1180.68" width="152.855" height="105.418">
+   <ellipse/>
+  </object>
+  <object id="23" name="fire" x="3191.52" y="4042.76" width="152.855" height="105.418">
+   <ellipse/>
+  </object>
+  <object id="24" name="fire" x="2801.47" y="4063.85" width="152.855" height="105.418">
+   <ellipse/>
+  </object>
+  <object id="25" name="fire" x="4667.36" y="2545.83" width="152.855" height="105.418">
+   <ellipse/>
+  </object>
+ </objectgroup>
+ <objectgroup id="5" name="walkable">
+  <object id="27" x="2898.98" y="5.27088">
+   <polygon points="0,0 15.8126,627.235 -26.3544,769.548 -36.8962,874.966 42.167,1033.09 47.4379,1243.93 -10.5418,1270.28 -47.4379,1802.64 47.4379,1839.54 36.8962,2208.5 31.6253,2340.27 -105.418,2282.29 -242.46,2329.73 -368.962,2324.46 -537.63,2382.44 -880.237,2366.62 -954.029,2377.17 -948.758,2677.61 -216.106,2677.61 -173.939,2582.73 -147.585,2487.85 -5.27088,2461.5 -5.27088,2651.25 -57.9797,2772.48 -36.8962,4000.6 52.7088,4069.12 31.6253,4169.27 -36.8962,4174.54 -52.7088,4385.37 405.858,4395.91 405.858,4148.18 326.794,4111.29 300.44,4032.22 421.67,3937.35 421.67,2698.69 1138.51,2667.06 1417.87,2651.25 1665.6,2603.81 1765.74,2677.61 2761.94,2677.61 2877.9,2661.79 2756.67,2435.15 2482.58,2429.88 2440.42,2313.92 2166.33,2308.64 2082,2398.25 1886.97,2361.35 1734.12,2366.62 896.049,2414.06 379.503,2382.44 305.711,2029.29 405.858,1881.7 405.858,1322.99 463.837,1149.05 527.088,1112.16 537.63,938.216 437.483,838.07 342.607,737.923 305.711,442.754 368.962,247.731 384.774,137.043 358.42,-31.6253"/>
+  </object>
  </objectgroup>
 </map>

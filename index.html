@@ -5,15 +5,24 @@
   <title>추리 게임</title>
   <style>
     * { margin: 0; padding: 0; }
-    body { background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; }
+    html, body { height: 100%; }
+    body {
+      background: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
   </style>
 </head>
 <body>
   <!-- Phaser CDN -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
 
-  <!-- 게임 코드 -->
-  <script src="MapScene.js"></script>
-  <script src="main.js"></script>
+  <!-- 게임 코드: 매번 새로 받아오도록 캐시 무효화 파라미터를 붙인다 -->
+  <script>
+    const __v = Date.now();
+    document.write(`<script src="MapScene.js?v=${__v}"><\/script>`);
+    document.write(`<script src="main.js?v=${__v}"><\/script>`);
+  </script>
 </body>
 </html>

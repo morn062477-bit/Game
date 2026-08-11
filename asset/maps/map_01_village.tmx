@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="96" height="70" tilewidth="32" tileheight="32" infinite="0" nextlayerid="5" nextobjectid="5">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="96" height="70" tilewidth="32" tileheight="32" infinite="0" nextlayerid="7" nextobjectid="32">
+ <editorsettings>
+  <export target="map_01_village.json" format="json"/>
+ </editorsettings>
  <layer id="1" name="Background" width="96" height="70">
   <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -223,28 +226,70 @@
 </data>
  </layer>
  <imagelayer id="10" name="Background_Image">
-  <image source="../backgrouds/map_01_village_bg.png" width="3072" height="2214"/>
+  <image source="../backgrounds/map_01_village_bg.png" width="3072" height="2240"/>
  </imagelayer>
  <objectgroup id="4" name="Portals">
-  <object id="1" name="To_Forest" x="1916" y="132" width="100" height="64">
+  <object id="1" name="To_Forest" x="1923.39" y="64.7275" width="90.909" height="51.697">
    <properties>
     <property name="target_map" value="map_02_forest.tmx"/>
    </properties>
   </object>
-  <object id="2" name="To_Farm" x="1472" y="2064" width="124" height="56">
+  <object id="2" name="To_Farm" x="1459.94" y="2162.66" width="163.515" height="56.788">
    <properties>
     <property name="target_map" value="map_03_farm.tmx"/>
    </properties>
   </object>
-  <object id="3" name="To_Port" x="332" y="128" width="108" height="64">
+  <object id="3" name="To_Port" x="345.879" y="0.848485" width="82.788" height="57.7575">
    <properties>
     <property name="target_map" value="map_04_port.tmx"/>
    </properties>
   </object>
-  <object id="4" name="To_Lake" x="2936" y="1336" width="64" height="112">
+  <object id="4" name="To_Lake" x="2990.57" y="1326.68" width="79.788" height="165.394">
    <properties>
     <property name="target_map" value="map_05_lake.tmx"/>
    </properties>
   </object>
+  <object id="6" name="fire_plus" x="1047.97" y="1375.28" width="142.428" height="124.709">
+   <ellipse/>
+  </object>
+  <object id="7" name="fire" x="1317.85" y="1922.13" width="76.4275" height="52.709">
+   <ellipse/>
+  </object>
+  <object id="8" name="fire" x="1676.94" y="1914.56" width="76.4275" height="52.709">
+   <ellipse/>
+  </object>
+  <object id="9" name="fire" x="2999.66" y="1255.46" width="76.4275" height="52.709">
+   <ellipse/>
+  </object>
+  <object id="10" name="fire" x="2604.21" y="1253.95" width="76.4275" height="52.709">
+   <ellipse/>
+  </object>
+  <object id="11" name="fire" x="1816.33" y="1040.31" width="76.4275" height="52.709">
+   <ellipse/>
+  </object>
+  <object id="12" name="fire" x="1615.79" y="1435.64" width="76.4275" height="52.709">
+   <ellipse/>
+  </object>
+  <object id="14" name="deco_village_blue_house" x="2026" y="790" width="664" height="547.6"/>
+  <object id="15" name="deco_village_statue" x="2026" y="1370" width="222" height="502.7"/>
+ </objectgroup>
+ <objectgroup id="5" name="walkable">
+  <object id="16" x="336.364" y="6.06061">
+   <polygon points="0,0 -12.1212,1039.39 39.3939,1100 39.3939,1200 169.697,1245.45 184.848,1336.36 263.636,1342.42 260.606,1496.97 236.364,1581.82 203.03,1642.42 12.1212,1645.45 -248.485,1639.39 -251.515,1703.03 6.06061,1724.24 6.06061,1775.76 96.9697,1760.61 103.03,1857.58 212.121,1854.55 212.121,1754.55 430.303,1745.45 478.788,1763.64 478.788,1854.55 872.727,1851.52 878.788,1718.18 1024.24,1724.24 1015.15,1842.42 1069.7,1827.27 1090.91,1963.64 1130.3,1969.7 1112.12,2230.3 1293.94,2224.24 1284.85,1951.52 1318.18,1854.55 1469.7,1854.55 1727.27,1872.73 1963.64,1875.76 2172.73,1887.88 2187.88,1778.79 2306.06,1854.55 2500,1863.64 2709.09,1842.42 2684.85,1696.97 2430.3,1712.12 2251.52,1578.79 2254.55,1478.79 2745.45,1493.94 2757.58,1151.52 2518.18,1187.88 2469.7,733.333 2236.36,724.242 1766.67,712.121 1693.94,557.576 1696.97,-6.06061 1512.12,-12.1212 1560.61,448.485 1569.7,975.758 1572.73,1203.03 1324.24,1209.09 1348.48,1106.06 1000,1112.12 1030.3,1212.12 909.091,1215.15 896.97,1115.15 827.273,1124.24 839.394,1072.73 700,1066.67 700,1181.82 536.364,1218.18 457.576,1127.27 436.364,1078.79 393.939,1078.79 363.636,1078.79 345.455,1078.79 315.152,1106.06 293.939,1127.27 251.515,1133.33 218.182,1166.67 166.667,1166.67 157.576,796.97 254.545,769.697 239.394,630.303 139.394,584.848 145.455,0"/>
+  </object>
+ </objectgroup>
+ <objectgroup id="6" name="walkdisable">
+  <object id="19" x="787.879" y="1321.21" width="163.636" height="42.4242"/>
+  <object id="20" x="766.667" y="1430.3" width="48.4848" height="109.091"/>
+  <object id="21" x="809.091" y="1578.79" width="154.545" height="42.4242"/>
+  <object id="22" x="1248.48" y="1393.94" width="93.9394" height="130.303"/>
+  <object id="23" x="1372.73" y="1424.24" width="54.5455" height="121.212"/>
+  <object id="24" x="1212.12" y="1569.7" width="151.515" height="51.5152"/>
+  <object id="25" x="1724.24" y="1442.42" width="136.364" height="160.606"/>
+  <object id="26" x="1678.79" y="1387.88" width="106.061" height="212.121"/>
+  <object id="27" x="1996.97" y="1572.73" width="266.667" height="193.939"/>
+  <object id="28" x="2030.3" y="939.394" width="654.545" height="396.97"/>
+  <object id="29" x="2833.33" y="1251.52" width="148.485" height="90.9091"/>
+  <object id="31" x="1290.91" y="1118.18"/>
  </objectgroup>
 </map>
