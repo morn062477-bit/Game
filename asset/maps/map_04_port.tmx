@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="96" height="70" tilewidth="32" tileheight="32" infinite="0" nextlayerid="6" nextobjectid="13">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="96" height="70" tilewidth="32" tileheight="32" infinite="0" nextlayerid="7" nextobjectid="18">
+ <editorsettings>
+  <export target="map_04_port.json" format="json"/>
+ </editorsettings>
  <layer id="1" name="Background" class="fire" width="96" height="70" visible="0">
   <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -223,36 +226,45 @@
 </data>
  </layer>
  <imagelayer id="10" name="Background_Image">
-  <image source="../backgrounds/map_04_port_bg.png" width="6144" height="4428"/>
+  <image source="../backgrounds/map_04_port_bg.png" width="3072" height="2240"/>
  </imagelayer>
  <objectgroup id="4" name="Portals">
-  <object id="1" name="To_Village" x="6010.73" y="1099.29" width="126.876" height="290.648">
+  <object id="1" name="To_Village" x="3005.36" y="549.645" width="63.438" height="145.324">
    <properties>
     <property name="target_map" value="map_01_village.tmx"/>
    </properties>
   </object>
-  <object id="4" name="start_point" x="5855.95" y="1270.28">
+  <object id="4" name="start_point" x="2927.97" y="635.14">
    <point/>
   </object>
-  <object id="5" name="deco_boat" x="5170.73" y="2825.19">
-   <point/>
-  </object>
-  <object id="8" name="fire" x="1183.51" y="2934.44" width="152.855" height="105.418">
+  <object id="5" name="deco_boat_small" x="386.53" y="1140.46" width="813.68" height="690.41"/>
+  <object id="6" name="deco_boat_large" x="1738.1" y="488.4" width="1333.89" height="1204.38"/>
+  <object id="8" name="fire" x="591.755" y="1467.22" width="76.4275" height="52.709">
    <ellipse/>
   </object>
-  <object id="9" name="fire" x="3523" y="2072.51" width="152.855" height="105.418">
+  <object id="9" name="fire" x="1761.5" y="1036.26" width="76.4275" height="52.709">
    <ellipse/>
   </object>
-  <object id="10" name="fire" x="4156.85" y="2009.91" width="152.855" height="105.418">
+  <object id="10" name="fire" x="2078.43" y="1004.96" width="76.4275" height="52.709">
    <ellipse/>
   </object>
-  <object id="11" name="fire" x="3506.62" y="2899.94" width="152.855" height="105.418">
+  <object id="11" name="fire" x="1753.31" y="1449.97" width="76.4275" height="52.709">
    <ellipse/>
   </object>
  </objectgroup>
  <objectgroup id="5" name="walkable">
-  <object id="12" x="6080" y="992">
-   <polygon points="0,0 -2088,32 -2344,184 -2632,232 -2776,224 -2776,-8 -3112,8 -3392,24 -3536,24 -3576,-96 -3624,-208 -3736,-304 -4032,-264 -4040,-616 -4144,-688 -5000,-680 -4808,-584 -4800,-232 -4576,-200 -4344,-200 -4320,72 -4392,176 -4544,264 -4760,216 -4776,312 -4792,536 -4672,624 -4712,824 -4848,912 -4848,1176 -4504,1176 -4536,664 -4296,656 -4160,704 -4048,680 -4016,1152 -3784,1112 -3784,800 -3680,744 -3464,728 -3456,872 -3456,960 -3384,1112 -3368,1216 -3688,1416 -3920,1448 -3976,1728 -4312,1744 -4456,1536 -4816,1504 -5144,1512 -5056,1864 -4400,1872 -3912,1928 -3584,1944 -3416,1952 -3416,1640 -3704,1696 -3408,1552 -3360,1560 -3360,1936 -3200,1960 -3200,2336 -2984,2344 -3032,2608 -2800,2616 -2760,2352 -2592,2368 -2600,2248 -2632,1920 -2600,1760 -2464,1688 -2448,1408 -2600,1328 -2568,1040 -2528,784 -2408,728 -2176,656 -2024,576 -1400,448 -1192,432 -1240,616 -832,648 -440,592 -368,464 96,488"/>
+  <object id="13" x="3064" y="528">
+   <polygon points="0,0 -1092,0 -1300,104 -1428,104 -1436,-24 -1812,-16 -1816,-200 -2056,-196 -2044,-372 -2116,-408 -2124,-520 -2688,-516 -2428,-268 -2436,-140 -2156,-136 -2152,100 -2440,104 -2440,280 -2044,284 -2044,420 -1916,416 -1912,340 -1748,348 -1696,368 -1700,576 -1884,676 -1996,696 -1996,788 -2568,796 -2568,944 -1848,948 -1828,824 -1720,728 -1720,960 -1620,956 -1620,1160 -1524,1176 -1512,1268 -1384,1264 -1388,1168 -1312,1164 -1312,908 -1232,920 -1240,660 -1308,660 -1312,420 -972,212 -636,200 -656,308 -264,312 -264,188 -8,192"/>
+  </object>
+  <object id="14" x="-1288" y="12"/>
+  <object id="15" x="464" y="-320"/>
+ </objectgroup>
+ <objectgroup id="6" name="npc">
+  <object id="16" name="fisher" x="720" y="1388">
+   <point/>
+  </object>
+  <object id="17" name="captain" x="1756" y="1248">
+   <point/>
   </object>
  </objectgroup>
 </map>

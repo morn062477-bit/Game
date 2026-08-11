@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="96" height="68" tilewidth="32" tileheight="32" infinite="0" nextlayerid="6" nextobjectid="19">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="96" height="68" tilewidth="32" tileheight="32" infinite="0" nextlayerid="7" nextobjectid="21">
  <editorsettings>
   <export target="map_05_lake.json" format="json"/>
  </editorsettings>
@@ -259,6 +259,14 @@
  <objectgroup id="5" name="walkable">
   <object id="18" x="2" y="1382">
    <polygon points="0,0 122,-108 208,-102 222,-64 224,6 378,8 382,56 542,64 560,34 604,28 594,166 290,180 336,214 372,346 444,404 584,406 634,462 870,294 996,386 1002,424 790,586 862,656 882,698 1004,674 1058,716 1126,782 950,794 886,720 790,710 772,742 660,648 564,610 514,640 450,612 376,622 388,592 336,592 270,522 270,484 228,484 174,406 124,346 26,262 18,238 0,236"/>
+  </object>
+ </objectgroup>
+ <objectgroup id="6" name="npc">
+  <object id="19" name="girl" x="830" y="1820">
+   <point/>
+  </object>
+  <object id="20" name="painter" x="2150" y="782">
+   <point/>
   </object>
  </objectgroup>
 </map>

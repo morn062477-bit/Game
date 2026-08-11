@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="96" height="70" tilewidth="32" tileheight="32" infinite="0" nextlayerid="6" nextobjectid="28">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="96" height="70" tilewidth="32" tileheight="32" infinite="0" nextlayerid="7" nextobjectid="31">
+ <editorsettings>
+  <export target="map_03_farm.json" format="json"/>
+ </editorsettings>
  <layer id="1" name="Background" width="96" height="70">
   <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -223,57 +226,65 @@
 </data>
  </layer>
  <imagelayer id="10" name="Background_Image">
-  <image source="../backgrounds/map_03_farm_bg.png" width="6144" height="4428"/>
+  <image source="../backgrounds/map_03_farm_bg.png" width="3072" height="2240"/>
  </imagelayer>
+ <objectgroup id="5" name="walkable">
+  <object id="28" x="1454.77" y="0">
+   <polygon points="0,0 -2.63544,329.43 -28.9899,329.43 -28.9899,500.735 13.1772,498.098 10.5418,627.235 -42.1671,627.235 -36.8961,909.225 7.9063,909.225 7.9063,1170.13 -192.387,1167.5 -192.387,1204.39 -482.286,1204.39 -477.014,1349.35 -52.709,1365.16 -39.5316,2197.95 200.293,2200.59 197.658,1322.99 1481.12,1301.9 1465.31,1225.48 160.762,1220.21 158.126,550.805 231.918,550.805 234.554,458.567 158.126,448.024 158.126,-10.5418 -5.2709,-36.8961"/>
+  </object>
+ </objectgroup>
  <objectgroup id="4" name="Portals">
-  <object id="2" name="To_Village" x="2916.68" y="1.93566" width="294.267" height="99.5556">
+  <object id="2" name="To_Village" x="1458.34" y="0.96783" width="147.133" height="49.7778">
    <properties>
     <property name="target_map" value="map_01_village.tmx"/>
    </properties>
   </object>
-  <object id="12" name="start_point" x="3048.02" y="448.933">
+  <object id="12" name="start_point" x="1524.01" y="224.466">
    <point/>
   </object>
-  <object id="14" name="fire" x="3360.19" y="300.44" width="152.855" height="105.418">
+  <object id="14" name="fire" x="1680.1" y="150.22" width="76.4275" height="52.709">
    <ellipse/>
   </object>
-  <object id="15" name="fire" x="2664.43" y="274.085" width="152.855" height="105.418">
+  <object id="15" name="fire" x="1332.21" y="137.042" width="76.4275" height="52.709">
    <ellipse/>
   </object>
-  <object id="16" name="fire" x="2796.2" y="1085.8" width="152.855" height="105.418">
+  <object id="16" name="fire" x="1398.1" y="542.9" width="76.4275" height="52.709">
    <ellipse/>
   </object>
-  <object id="17" name="fire" x="3238.96" y="2013.48" width="152.855" height="105.418">
+  <object id="17" name="fire" x="1619.48" y="1006.74" width="76.4275" height="52.709">
    <ellipse/>
   </object>
-  <object id="18" name="fire" x="2748.76" y="2472.04" width="152.855" height="105.418">
+  <object id="18" name="fire" x="1374.38" y="1236.02" width="76.4275" height="52.709">
    <ellipse/>
   </object>
-  <object id="19" name="fire" x="1805.28" y="2429.87" width="152.855" height="105.418">
+  <object id="19" name="fire" x="902.64" y="1214.93" width="76.4275" height="52.709">
    <ellipse/>
   </object>
-  <object id="20" name="fire" x="524.453" y="2071.46" width="152.855" height="105.418">
+  <object id="20" name="fire" x="262.226" y="1035.73" width="76.4275" height="52.709">
    <ellipse/>
   </object>
-  <object id="21" name="fire" x="545.536" y="2956.96" width="152.855" height="105.418">
+  <object id="21" name="fire" x="272.768" y="1478.48" width="76.4275" height="52.709">
    <ellipse/>
   </object>
-  <object id="22" name="fire" x="608.787" y="1180.68" width="152.855" height="105.418">
+  <object id="22" name="fire" x="304.394" y="590.34" width="76.4275" height="52.709">
    <ellipse/>
   </object>
-  <object id="23" name="fire" x="3191.52" y="4042.76" width="152.855" height="105.418">
+  <object id="23" name="fire" x="1595.76" y="2021.38" width="76.4275" height="52.709">
    <ellipse/>
   </object>
-  <object id="24" name="fire" x="2801.47" y="4063.85" width="152.855" height="105.418">
+  <object id="24" name="fire" x="1400.73" y="2031.92" width="76.4275" height="52.709">
    <ellipse/>
   </object>
-  <object id="25" name="fire" x="4667.36" y="2545.83" width="152.855" height="105.418">
+  <object id="25" name="fire" x="2333.68" y="1272.91" width="76.4275" height="52.709">
    <ellipse/>
   </object>
  </objectgroup>
- <objectgroup id="5" name="walkable">
-  <object id="27" x="2898.98" y="5.27088">
-   <polygon points="0,0 15.8126,627.235 -26.3544,769.548 -36.8962,874.966 42.167,1033.09 47.4379,1243.93 -10.5418,1270.28 -47.4379,1802.64 47.4379,1839.54 36.8962,2208.5 31.6253,2340.27 -105.418,2282.29 -242.46,2329.73 -368.962,2324.46 -537.63,2382.44 -880.237,2366.62 -954.029,2377.17 -948.758,2677.61 -216.106,2677.61 -173.939,2582.73 -147.585,2487.85 -5.27088,2461.5 -5.27088,2651.25 -57.9797,2772.48 -36.8962,4000.6 52.7088,4069.12 31.6253,4169.27 -36.8962,4174.54 -52.7088,4385.37 405.858,4395.91 405.858,4148.18 326.794,4111.29 300.44,4032.22 421.67,3937.35 421.67,2698.69 1138.51,2667.06 1417.87,2651.25 1665.6,2603.81 1765.74,2677.61 2761.94,2677.61 2877.9,2661.79 2756.67,2435.15 2482.58,2429.88 2440.42,2313.92 2166.33,2308.64 2082,2398.25 1886.97,2361.35 1734.12,2366.62 896.049,2414.06 379.503,2382.44 305.711,2029.29 405.858,1881.7 405.858,1322.99 463.837,1149.05 527.088,1112.16 537.63,938.216 437.483,838.07 342.607,737.923 305.711,442.754 368.962,247.731 384.774,137.043 358.42,-31.6253"/>
+ <objectgroup id="6" name="npc">
+  <object id="29" name="farmer_baby" x="1109.09" y="1233.33">
+   <point/>
+  </object>
+  <object id="30" name="farmer" x="2627.27" y="1236.36">
+   <point/>
   </object>
  </objectgroup>
 </map>

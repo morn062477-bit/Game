@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="96" height="70" tilewidth="32" tileheight="32" infinite="0" nextlayerid="7" nextobjectid="12">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="96" height="70" tilewidth="32" tileheight="32" infinite="0" nextlayerid="9" nextobjectid="23">
  <editorsettings>
   <export target="map_02_forest.json" format="json"/>
  </editorsettings>
@@ -228,6 +228,12 @@
  <imagelayer id="10" name="Background_Image">
   <image source="../backgrounds/map_02_forest_bg.png" width="3072" height="2240"/>
  </imagelayer>
+ <objectgroup id="6" name="walkable">
+  <object id="12" x="3400" y="887.879"/>
+  <object id="18" x="1481.82" y="448.485">
+   <polygon points="0,0 6.06061,372.727 -118.182,424.242 -187.879,490.909 -281.818,554.545 -278.788,654.545 -266.667,763.636 -242.424,830.303 -209.091,881.818 -133.333,918.182 -118.182,960.606 -33.3333,1033.33 -18.1818,1090.91 -18.1818,1151.52 -72.7273,1187.88 -90.9091,1206.06 -96.9697,1275.76 -93.9394,1430.3 -127.273,1475.76 -139.394,1548.48 -139.394,1636.36 -133.333,1790.91 239.394,1787.88 236.364,1669.7 330.303,1533.33 339.394,1190.91 221.212,1187.88 200,1057.58 245.455,990.909 324.242,966.667 421.212,842.424 487.879,684.848 481.818,545.455 387.879,481.818 272.727,372.727 169.697,384.848 121.212,375.758 121.212,303.03 151.515,196.97 157.576,-3.0303"/>
+  </object>
+ </objectgroup>
  <objectgroup id="4" name="Portals">
   <object id="1" name="To_Village" x="1424" y="2149.59" width="253.19" height="71.5315">
    <properties>
@@ -252,10 +258,30 @@
   <object id="9" name="fire_plus" x="1478.42" y="1062.98" width="142.428" height="124.709">
    <ellipse/>
   </object>
+  <object id="19" name="To_Body" x="1481.82" y="451.515" width="148.485" height="90.9091">
+   <properties>
+    <property name="target_map" value="map_08_body.tmx"/>
+   </properties>
+  </object>
+  <object id="20" x="830.303" y="987.879" width="1.69697" height="4.12121"/>
  </objectgroup>
- <objectgroup id="6" name="walkable">
-  <object id="11" x="1390.91" y="2245.45">
-   <polygon points="0,0 9.09091,-293.939 127.273,-339.394 130.303,-645.455 84.8485,-684.848 54.5455,-766.667 -21.2121,-790.909 -87.8788,-866.667 -151.515,-936.364 -166.667,-969.697 -178.788,-1039.39 -193.939,-1115.15 -178.788,-1163.64 -166.667,-1203.03 -151.515,-1245.45 -90.9091,-1296.97 -21.2121,-1357.58 45.4545,-1396.97 66.6667,-1409.09 75.7576,-1448.48 78.7879,-1496.97 96.9697,-1515.15 142.424,-1518.18 221.212,-1521.21 221.212,-1472.73 242.424,-1433.33 390.909,-1418.18 472.727,-1330.3 572.727,-1309.09 587.879,-1251.52 584.848,-1190.91 590.909,-1151.52 593.939,-1112.12 590.909,-1084.85 584.848,-1066.67 578.788,-1018.18 545.455,-921.212 490.909,-869.697 396.97,-772.727 306.061,-751.515 312.121,-669.697 366.667,-633.333 460.606,-633.333 472.727,-281.818 403.03,-166.667 387.879,-124.242 357.576,-21.2121 339.394,3.0303"/>
+ <objectgroup id="8" name="npc">
+  <object id="21" name="hunter" x="1700" y="1087.88">
+   <point/>
+  </object>
+  <object id="22" name="boy" x="1709.09" y="1490.91">
+   <point/>
+  </object>
+ </objectgroup>
+ <objectgroup id="7" name="walkdisable">
+  <object id="13" x="1421.21" y="1272.73" width="269.697" height="45.4545">
+   <capsule/>
+  </object>
+  <object id="14" x="1433.33" y="1003.03" width="236.364" height="24.2424">
+   <capsule/>
+  </object>
+  <object id="17" x="1451.52" y="1087.88" width="209.091" height="139.394">
+   <ellipse/>
   </object>
  </objectgroup>
  <layer id="5" width="96" height="70">
