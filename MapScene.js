@@ -131,6 +131,49 @@ const DIALOGUE_SCRIPTS = {
     '근데, 숲이 워낙 울창해서 항상 어둡기 때문에\n랜턴이 없으면 들어갈 수가 없다고 하더군요.',
   ],
 };
+
+// =============================================
+// 용의자 5명 조사 완료 후 마을 집합 대화
+// =============================================
+
+const FINAL_GATHER_SCRIPT = [
+    {
+        speaker: '사냥꾼',
+        text: '이제 조사할 만큼 한 것 같은데.\n결론을 내릴 때가 되지 않았소?',
+        portraitTexKey: 'npc-hunter'
+    },
+
+    {
+        speaker: '어부',
+        text: '나도 더는 이 일 때문에 일을 미룰 수 없소.\n범인이 누군지 알았다면 말해주시오.',
+        portraitTexKey: 'npc-fisher'
+    },
+
+    {
+        speaker: '이장 부인',
+        text: '모두의 이야기를 들으셨으니\n이제 답을 가지고 계시겠죠.',
+        portraitTexKey: 'npc-wife'
+    },
+
+    {
+        speaker: '화가',
+        text: '…….',
+        portraitTexKey: 'npc-painter'
+    },
+
+    {
+        speaker: '농부',
+        text: '탐정님.\n이제 누구의 짓인지 알아낸 겁니까?',
+        portraitTexKey: 'npc-farmer'
+    },
+
+    {
+        speaker: '탐정',
+        text: '네.\n이제 한 사람을 지목하겠습니다.',
+        isDetective: true
+    }
+];
+
 // npc id -> 화면에 보여줄 한글 이름. 맵 위 이름표(닉네임)와 대화창의 "[이름]" 표시에
 // 둘 다 쓴다. 여기 없는 id는 그냥 원래 id(영문)가 그대로 뜬다.
 const NPC_DISPLAY_NAME = {
@@ -200,6 +243,9 @@ class MapScene extends Phaser.Scene {
     // 다시 시작하기 위한 좌표. SuspectVNScene/DaVinciCodeScene이 넘겨줄 때만 있다.
     this.resumeX = data.returnX ?? null;
     this.resumeY = data.returnY ?? null;
+    // 최종 추리를 위해 마을로 강제 이동된 상태인지
+    this.endingGather = data.endingGather === true;
+    this.storyEvent = data.storyEvent || null;
   }
 
   preload() {
@@ -459,7 +505,15 @@ class MapScene extends Phaser.Scene {
       .map(obj => new Phaser.Geom.Polygon(obj.polygon.map(p => ({ x: obj.x + p.x, y: obj.y + p.y }))));
     // walkdisable 오브젝트는 사각형뿐 아니라 폴리곤으로도 그릴 수 있다(폴리곤은 Tiled에서
     // width/height가 0으로 저장되므로, 사각형 취급하면 사실상 아무 것도 막지 못한다).
+    const hiddenForestUnlocked = window.GameSave?.state?.data?.story?.hiddenForestUnlocked === true;
     this.walkdisableShapes = (map.getObjectLayer('walkdisable')?.objects || [])
+      // 이전 맵 JSON에는 blocker 이름이 없으므로, 숨겨진 숲 입구 바로 아래를 막는
+      // walkdisable(id 14)도 랜턴을 고친 뒤에는 함께 제거한다.
+      .filter(obj => !(
+        hiddenForestUnlocked
+        && this.currentMapKey === 'map_02_forest'
+        && (obj.name === 'hidden_forest_blocker' || obj.id === 14)
+      ))
       .map(obj => obj.polygon
         ? new Phaser.Geom.Polygon(obj.polygon.map(p => ({ x: obj.x + p.x, y: obj.y + p.y })))
         : new Phaser.Geom.Rectangle(obj.x, obj.y, obj.width || 1, obj.height || 1));
@@ -682,12 +736,101 @@ class MapScene extends Phaser.Scene {
       this.bgmExtra = playBgm(extra.key, extra.volume);
     }
 
+    // =============================================
+    // 최종 집합 이벤트
+    // =============================================
+    if (this.endingGather) {
+
+        // 검은 화면에서 마을이 다시 나타난다.
+        this.cameras.main.fadeIn(
+            300,
+            0,
+            0,
+            0
+        );
+
+        // fadeIn이 끝난 뒤 집합 대화 시작
+        this.cameras.main.once(
+            Phaser.Cameras.Scene2D.Events.FADE_IN_COMPLETE,
+            () => {
+                this.startFinalGatherDialogue();
+            }
+        );
+    }
+    const story = window.GameSave?.state?.data?.story;
+    // 농부 도주 뒤 플레이어가 직접 마을의 숲 포탈을 통과해 처음 도착했을 때만
+    // 랜턴 발견/수리 장면을 시작한다.
+    if (this.storyEvent === 'forestDiscovery'
+      || (this.currentMapKey === 'map_02_forest' && story?.phase === 'farmer_escape')) {
+      this.time.delayedCall(350, () => this.scene.start('EndingStoryScene', { route: 'forestDiscovery' }));
+    }
+    if (this.currentMapKey === 'map_02_forest' && this.storyEvent === 'walkToHiddenForest') {
+      this.time.delayedCall(350, () => this.playHiddenForestWalkCutscene());
+    }
+    // 시체 맵에서는 자백을 자동 시작하지 않는다. 현장의 농부에게 직접 말을 걸면
+    // 첨부된 농부 장면과 자백 대사가 열린다.
     // 8. 오프닝 컷씬. 맨 처음 마을에 들어왔을 때(포탈을 타고 온 게 아니라 게임을 막 시작했을
     // 때)만 한 번 재생한다.
-    if (this.currentMapKey === 'map_01_village' && !this.fromMapKey && !hasPlayedIntro) {
+    if (this.currentMapKey === 'map_01_village' && !this.fromMapKey && !hasPlayedIntro
+      && !this.endingGather && (!story || story.phase === 'investigation')) {
       hasPlayedIntro = true;
       this.playIntroCutscene(map);
     }
+  }
+
+  // 랜턴을 고친 뒤 탐정이 숲 아래쪽 시작점에서 북쪽의 숨겨진 입구까지 걸어가는 장면.
+  // 물리 충돌은 잠시 끄고 숲길 중심을 따라 여러 지점을 순서대로 이동시킨다.
+  playHiddenForestWalkCutscene() {
+    if (this.isCutscene || this.currentMapKey !== 'map_02_forest') return;
+
+    this.isCutscene = true;
+    this.portalTransitioning = true;
+    this.player.body.setVelocity(0);
+    this.player.body.enable = false;
+    this.player.setDepth(2000);
+    this.interactText.setText('').setVisible(false);
+
+    const path = [
+      { x: 1549, y: 1810 },
+      { x: 1580, y: 1510 },
+      { x: 1600, y: 1280 },
+      { x: 1710, y: 1120 },
+      { x: 1660, y: 930 },
+      { x: 1545, y: 760 },
+      { x: 1555, y: 535 },
+    ];
+
+    const walkNext = (index) => {
+      if (index >= path.length) {
+        this.player.anims.stop();
+        this.player.setFrame(15);
+        this.cameras.main.fadeOut(350, 0, 0, 0);
+        this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+          this.scene.restart({ mapKey: 'map_08_body', fromMapKey: 'map_02_forest' });
+        });
+        return;
+      }
+
+      const target = path[index];
+      const dx = target.x - this.player.x;
+      const dy = target.y - this.player.y;
+      const direction = Math.abs(dx) > Math.abs(dy)
+        ? (dx < 0 ? 'left' : 'right')
+        : (dy < 0 ? 'up' : 'down');
+      this.player.anims.play(`walk-${direction}`, true);
+
+      const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, target.x, target.y);
+      this.tweens.add({
+        targets: this.player,
+        x: target.x,
+        y: target.y,
+        duration: Math.max(350, distance / 360 * 1000),
+        ease: 'Linear',
+        onComplete: () => walkNext(index + 1),
+      });
+    };
+
+    walkNext(0);
   }
 
   // --- 깜빡이는 빛(횃불 등) ---
@@ -782,6 +925,10 @@ class MapScene extends Phaser.Scene {
     const npcObjects = map.getObjectLayer('npc')?.objects || [];
     npcObjects.forEach((obj, i) => {
       if (!obj.name) return;
+      const storyPhase = window.GameSave?.state?.data?.story?.phase;
+      const isEndingForest = this.currentMapKey === 'map_02_forest'
+        && ['farmer_escape', 'hidden_forest', 'confession', 'ending'].includes(storyPhase);
+      if (isEndingForest && (obj.name === 'hunter' || obj.name === 'boy')) return;
       const data = { id: obj.name, name: NPC_DISPLAY_NAME[obj.name] || obj.name };
       const texKey = npcTextureKeys[obj.name];
 
@@ -840,6 +987,16 @@ class MapScene extends Phaser.Scene {
       this.physics.add.existing(zone, true);
 
       this.physics.add.overlap(this.player, zone, () => {
+        if (targetMap === 'map_08_body'
+          && window.GameSave?.state?.data?.story?.farmerLantern !== 'lit') {
+          if (!this.portalLockNotice || this.time.now > this.portalLockNotice) {
+            this.portalLockNotice = this.time.now + 1500;
+            this.interactText.setText('안쪽은 너무 어두워 들어갈 수 없다.').setVisible(true);
+          }
+          return;
+        }
+        if (this.portalTransitioning) return;
+        this.portalTransitioning = true;
         this.scene.restart({ mapKey: targetMap, fromMapKey: this.currentMapKey });
       });
     });
@@ -959,6 +1116,7 @@ class MapScene extends Phaser.Scene {
       this.interactText.setText(`[SPACE] ${npcData.name}와 대화하기`).setVisible(true);
 
       if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
+        if (this.startBodyConfessionIfAvailable(npcData)) return;
         // 용의자(다빈치코드 대전 상대로 매핑된 NPC)는 미연시풍 배경+일러스트 화면으로,
         // 그 외 일반 NPC는 지금까지의 하단 대화창으로 처리한다.
         if (NPC_TO_BOT_NAME[npcData.id]) {
@@ -984,6 +1142,78 @@ class MapScene extends Phaser.Scene {
       this.interactText.setText('').setVisible(false);
     }
   }
+
+  startBodyConfessionIfAvailable(npcData) {
+    if (this.currentMapKey !== 'map_08_body' || npcData?.id !== 'farmer') return false;
+    const story = window.GameSave?.state?.data?.story;
+    if (!story || story.bodyFound !== false) return true;
+    this.scene.start('EndingStoryScene', { route: 'bodyConfession' });
+    return true;
+  }
+
+  // =============================================
+// 최종 추리 직전 마을 집합 대화
+// =============================================
+startFinalGatherDialogue() {
+    const save =
+        window.GameSave?.state?.data;
+
+    if (!save) {
+        console.warn(
+            '[최종 집합] 세이브 데이터를 찾을 수 없습니다.'
+        );
+        return;
+    }
+
+    // 같은 이벤트가 두 번 재생되지 않도록
+    // 실제 대화가 시작되는 순간 기록한다.
+    save.story.finalGatherPlayed = true;
+
+    window.GameSave.saveGame().catch((error) => {
+        console.error(
+            '[최종 집합] 진행상태 저장 실패:',
+            error
+        );
+    });
+
+    // 플레이어 이동 잠금
+    this.isTalking = true;
+
+    this.interactText
+        .setText('')
+        .setVisible(false);
+
+    // 일반 NPC 한 명과 대화하는 게 아니므로 초기화
+    this.currentNpcData = null;
+    this.currentNpcName = null;
+    this.npcPortraitTexKey = null;
+
+    // 집합 대본 복사
+    this.dialogueLines =
+        FINAL_GATHER_SCRIPT.map(line => ({ ...line }));
+
+    this.dialogueIndex = 0;
+
+    // 이 대화가 끝났을 때 실행할 작업
+    this.dialogueCompleteCallback = () => {
+        save.story.phase = 'final_deduction';
+
+        window.GameSave.saveGame().catch((error) => {
+            console.error(
+                '[최종 집합] final_deduction 저장 실패:',
+                error
+            );
+        });
+
+        console.log(
+            '[최종 집합] 대화 완료 → final_deduction'
+        );
+        this.scale.resize(960, 540);
+        this.scene.start('FinalDeductionScene');
+    };
+
+    this.showDialogueLine();
+}
 
   // --- NPC 대화 ---
   // DIALOGUE_SCRIPTS[npcData.id]의 각 항목은 두 형태를 쓸 수 있다:
@@ -1027,7 +1257,8 @@ class MapScene extends Phaser.Scene {
     // 초상화 우선순위: 1) 대화창 전용 일러스트(DIALOGUE_ILLUST_BY_NPC) 2) 없으면 맵에
     // 스폰할 때 쓴 걷기 스프라이트(탐정 질문 줄은 플레이어 스프라이트) 3) 그것도 없으면 빈 칸.
     const illustKey = line.isDetective ? DETECTIVE_ILLUST_KEY : DIALOGUE_ILLUST_BY_NPC[this.currentNpcData?.id];
-    const spriteTexKey = line.isDetective ? 'player' : this.npcPortraitTexKey;
+
+    const spriteTexKey = line.isDetective ? 'player' : (line.portraitTexKey || this.npcPortraitTexKey);
     const { size } = this.dialoguePortraitBox;
     if (illustKey && this.textures.exists(illustKey)) {
       this.dialoguePortrait.setTexture(illustKey).setVisible(true);
@@ -1055,6 +1286,7 @@ class MapScene extends Phaser.Scene {
   // 애초에 여기로 안 오고 SuspectVNScene으로 바로 가서 거기서 "수사하기" 버튼을 눌러야만
   // 다빈치코드로 넘어간다 - 예전엔 여기서도 무조건 미니게임을 켜버리는 버그가 있었다.
   endDialogue() {
+    const completedNpcId = this.currentNpcData?.id;
     this.isTalking = false;
     this.dialogueBox.setVisible(false);
     this.dialoguePortraitBg.setVisible(false);
@@ -1062,6 +1294,32 @@ class MapScene extends Phaser.Scene {
     this.dialogueNameText.setVisible(false);
     this.dialogueText.setVisible(false);
     this.dialogueHint.setVisible(false);
+
+    // 집합 대화처럼
+    // 대화 종료 후 실행해야 할 작업이 있다면 실행
+    const callback =
+      this.dialogueCompleteCallback;
+
+    this.dialogueCompleteCallback = null;
+
+    if (callback) {
+        callback();
+    }
+
+    const coverup = window.GameSave?.state?.data?.story?.painterCoverup;
+    if (coverup && completedNpcId) {
+      let changed = false;
+      if (completedNpcId === 'boy' || completedNpcId === 'girl') {
+        changed = !coverup.alibiGap || !coverup.farmerRelationship;
+        coverup.alibiGap = true;
+        coverup.farmerRelationship = true;
+      }
+      if (completedNpcId === 'hunter') {
+        changed = changed || !coverup.bloodyTowel;
+        coverup.bloodyTowel = true;
+      }
+      if (changed) window.GameSave.saveGame().catch(error => console.error('[은폐 단서] 저장 실패:', error));
+    }
   }
 
   // --- 오프닝 컷씬 ---
