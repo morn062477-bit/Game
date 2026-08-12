@@ -1,22 +1,19 @@
 // Player, MatchEngine, SkilledHumanInputStrategy, makeBotStrategy, Color,
-// BOT_ITEM_ASSIGNMENT, ITEM_SKILLS는 daVinciLogic.js가 만드는 전역 값들이다.
+// BOT_ITEM_ASSIGNMENT, BOT_NAMES, ITEM_SKILLS는 daVinciLogic.js가 만드는 전역 값들이다.
 // (index.html에서 daVinciLogic.js를 이 파일보다 먼저 로드해야 한다.)
 
-const TILE_W = 66;
-const TILE_H = 96;
+// 카드 전체 크기를 1.2배로 키웠다(요청사항) - 기존 58x84 기준에 CARD_SCALE만
+// 곱해서 카드 관련 치수가 전부 같이 늘어나게 한다.
+const CARD_SCALE = 1.2;
+const TILE_W = Math.round(58 * CARD_SCALE);
+const TILE_H = Math.round(84 * CARD_SCALE);
 const FONT = 'Galmuri9, monospace';
 const FONT_BOLD = 'Galmuri11, monospace';
-const REVEAL_LIFT = 20; // 내 카드가 상대에게 들켰을 때 이만큼 위로 들어올려서 표시한다
-
-// botName -> 카드 배경 이미지 테마. 그림 없는 봇(봇2=docter)은 기존처럼 색깔 사각형으로
-// 그려진다. 새 용의자 카드 그림을 받으면 여기 항목만 추가하면 된다.
-const CARD_THEME_BY_BOT = {
-  봇1: 'wife',
-  봇3: 'hunter',
-  봇4: 'farmer',
-  봇5: 'painter',
-  봇6: 'fisher',
-};
+const FONT_NUMBER = 'Blacksword, serif'; // 카드 숫자 전용 고딕 폰트
+// 카드 앞면 템플릿 이미지에서 숫자가 들어갈 자리의 중심 y위치(카드 높이 대비 비율).
+// 흰 카드/검은 카드 원본 그림의 여백이 서로 살짝 달라서 따로 둔다.
+const NUMBER_CENTER_Y_FRAC = { white: 0.565, black: 0.59 };
+const REVEAL_LIFT = Math.round(20 * CARD_SCALE); // 내 카드가 상대에게 들켰을 때 이만큼 위로 들어올려서 표시한다
 
 // 화면을 위(상대) / 가운데(매트) / 아래(주인공) 3단으로 나눈다.
 // 위/아래 초상+대화창은 크기를 동일하게 맞췄고(요청사항 10), SKILL은 카드 줄 옆
@@ -29,9 +26,8 @@ const MAT_H = 600 - TOP_H - BOTTOM_H;
 const PORTRAIT_W = 140;
 
 const BOT_ROW_Y = MAT_Y + 24; // 144
-const PLAYER_ROW_Y = MAT_Y + MAT_H - TILE_H - 20; // 376
-const CARD_START_X = 150;
-const CARD_STEP = TILE_W + 10;
+const PLAYER_ROW_Y = MAT_Y + MAT_H - TILE_H - 20;
+const CARD_STEP = TILE_W + Math.round(10 * CARD_SCALE);
 const ACTION_X = 170;
 const ACTION_Y = 230;
 
@@ -63,7 +59,7 @@ const BOT_FLAVOR_LINES = {
     firstSkill: '미안하지만... 이미 다 보고 있었거든.',
   },
   봇2: {
-    start: '수사이라... 재밌겠네. 어디 한번 해보시지.',
+    start: '심문이라... 재밌겠네. 어디 한번 해보시지.',
     firstCorrect: '...운이 좋았을 뿐이야.',
     firstWrong: '역시, 그리 쉽지 않을걸?',
     firstSkill: '미안한데, 그건 가짜였어.',
@@ -87,7 +83,7 @@ const BOT_FLAVOR_LINES = {
     firstSkill: '자, 잠깐만요! 이건 보여줄 수 없어요!',
   },
   봇6: {
-    start: '…수사? 좋아. 논리로 승부하지.',
+    start: '…심문? 좋아. 논리로 승부하지.',
     firstCorrect: '흥미롭군. 우연은 아닌 것 같은데.',
     firstWrong: '예상했던 결과다.',
   },
@@ -108,9 +104,15 @@ class DaVinciCodeScene extends Phaser.Scene {
 
   init(data) {
     this.botName = (data && data.botName) || '봇1';
-    // 대전이 끝나고 "맵으로 돌아가기"를 누르면 원래 있던 맵으로 정확히 돌아가야 하므로
-    // MapScene이 launchNextGame()에서 넘겨준 원래 맵 키를 기억해둔다.
+    // 이겼을 때 SuspectChoiceScene(심문 선택지 화면)으로 넘어가려면 어떤 용의자였는지
+    // 알아야 하므로 SuspectVNScene이 넘겨준 npc 정보도 같이 들고 있는다.
+    this.npcId = data && data.npcId;
+    this.npcName = data && data.npcName;
+    // 대전이 끝나고 "맵으로 돌아가기"를 누르면 원래 있던 맵/자리로 정확히 돌아가야
+    // 하므로 SuspectVNScene이 넘겨준 맵 키와 좌표(대화를 걸었던 자리)를 기억해둔다.
     this.returnMapKey = (data && data.returnMapKey) || 'map_01_village';
+    this.returnX = data && data.returnX;
+    this.returnY = data && data.returnY;
     // 이 씬은 800x600 레이아웃을 그대로 가정하고 만들어져 있는데, 마을 게임 화면은
     // 960x540이라 크기가 다르다(의도된 설계). 씬이 시작될 때만 캔버스를 800x600으로
     // 바꾸고, 나중에 맵으로 돌아갈 때 다시 960x540으로 되돌린다.
@@ -123,17 +125,27 @@ class DaVinciCodeScene extends Phaser.Scene {
     this.load.image('coinFaceA', `asset/davinci/coin_face_a.png?v=${v}`);
     this.load.image('coinFaceB', `asset/davinci/coin_face_b.png?v=${v}`);
 
-    // 카드 배경 그림. 지금 상대(botName)에 해당하는 테마가 있을 때만 불러온다.
-    this.cardTheme = CARD_THEME_BY_BOT[this.botName] || null;
-    if (this.cardTheme) {
-      this.load.image('cardBlack', `asset/davinci/card-black-${this.cardTheme}.png?v=${v}`);
-      this.load.image('cardWhite', `asset/davinci/card-white-${this.cardTheme}.png?v=${v}`);
-    }
+    // 배경(원목 테이블) / 매트(초록 카드 매트) / 카드 앞뒤 디자인 - 새 브랜치가 도입한
+    // 용의자 공용 카드 템플릿. 카드 앞면은 가운데 숫자 자리를 비워둔 템플릿이고,
+    // 실제 숫자는 Blacksword 폰트로 그 위에 렌더링한다(makeTile 참고).
+    this.load.image('tableWood', `asset/davinci/wood_bg.png?v=${v}`);
+    this.load.image('tableMat', `asset/davinci/mat_green.png?v=${v}`);
+    this.load.image('cardFrontWhite', `asset/davinci/card_front_white.png?v=${v}`);
+    this.load.image('cardFrontBlack', `asset/davinci/card_front_black.png?v=${v}`);
+    this.load.image('cardBackWhite', `asset/davinci/card_back_white.png?v=${v}`);
+    this.load.image('cardBackBlack', `asset/davinci/card_back_black.png?v=${v}`);
 
     this.load.audio('bgm-davinci', `asset/sound/davinci.mp3?v=${v}`);
   }
 
   create() {
+    // Blacksword는 웹폰트라 브라우저가 비동기로 받아온다 - 카드 숫자를 그리기 전에
+    // 미리 로드를 걸어둬서, 첫 렌더 때 폰트가 아직 없어 기본 폰트로 잘못 그려지는
+    // 것을 최대한 피한다(대전 시작까지 몇 초 연출이 있어 대부분 그 사이 끝난다).
+    if (document.fonts && document.fonts.load) {
+      document.fonts.load('40px Blacksword').catch(() => {});
+    }
+
     // 마을 배경음악(bgm-main과, 맵에 따라 같이 깔려있었을 bgm-water/bgm-port)은
     // 멈추고 다빈치코드 전용 배경음악으로 바꿔서 튼다.
     ['bgm-main', 'bgm-water', 'bgm-port'].forEach(key => {
@@ -144,7 +156,7 @@ class DaVinciCodeScene extends Phaser.Scene {
     this.bgmDavinci.play();
 
     this.drawWoodBackground();
-    this.drawForestMat();
+    this.drawTableMat();
 
     const skillKey = BOT_ITEM_ASSIGNMENT[this.botName];
     this.skillInfo = skillKey ? ITEM_SKILLS[skillKey] : null;
@@ -155,28 +167,32 @@ class DaVinciCodeScene extends Phaser.Scene {
     // 위/아래 캐릭터 초상 + 대화창. 크기를 동일하게 맞췄고, 두 대화창 모두
     // 이제 '주인공/봇이 서로 대화하는' 용도의 짧은 한 줄 텍스트만 표시한다
     // (로그·스크롤 기능은 폐기).
+    // Galmuri9는 도트(비트맵) 폰트라 fontSize를 키우면(예: 24px) 한글 자모 조합이
+    // 깨져서 엉뚱한 글자로 보인다(테스트로 확인됨). 그래서 크기는 원래 그대로
+    // 12px에 정확히 그리고, 다 그려진 텍스트 객체 자체를 2배로 확대(setScale)한다 -
+    // 래스터라이즈 이후에 확대하는 거라 글자가 깨지지 않는다. wordWrap 너비는
+    // 확대 후 폭이 원래와 같아지도록 절반(260)으로 줄여둔다.
     this.drawPortraitBox(0, 0, PORTRAIT_W, TOP_H, 0xd8cfae, 0x2b2620);
     this.drawDialogueBox(PORTRAIT_W + 10, 10, 800 - PORTRAIT_W - 24, TOP_H - 20);
     this.opponentDialogueText = this.add.text(PORTRAIT_W + 24, 22, '', {
       fontFamily: FONT, fontSize: '12px', color: '#2b2620', lineSpacing: 4,
-      wordWrap: { width: 520 },
-    });
+      wordWrap: { width: 260 },
+    }).setScale(2);
 
     this.drawPortraitBox(0, 600 - BOTTOM_H, PORTRAIT_W, BOTTOM_H, 0xc9dce0, 0x1a3a52);
     this.drawDialogueBox(PORTRAIT_W + 10, 600 - BOTTOM_H + 10, 800 - PORTRAIT_W - 24, BOTTOM_H - 20);
     this.playerDialogueText = this.add.text(PORTRAIT_W + 24, 600 - BOTTOM_H + 22, '', {
       fontFamily: FONT, fontSize: '12px', color: '#2b2620', lineSpacing: 4,
-      wordWrap: { width: 520 },
-    });
+      wordWrap: { width: 260 },
+    }).setScale(2);
 
     this.dynamicLayer = this.add.container(0, 0);
 
-    // 대화창은 이제 대사/반응 전용이라(로그·안내문 폐기), 지금 뭘 해야 하는지
-    // 알려주는 짧은 안내문은 대신 매트 상단, 턴 배너가 지나간 자리 아래에 둔다.
-    this.guideText = this.add.text(400, MAT_Y + 5, '', {
-      fontFamily: FONT, fontSize: '11px', color: '#ffe9a8',
-    }).setOrigin(0.5, 0);
-    this.guideText.setDepth(5);
+    // 뒤집기/오답 연출은 그 자리의 카드 위에 임시 오버레이를 얹는데, 그 동안
+    // 아래에 있는 '진짜' 타일이 비쳐 보이면 카드가 두 장인 것처럼 된다. 숨겨야
+    // 할 자리의 키('side:index')를 여기 모아두고 render()가 매번 참고한다.
+    this.hiddenTiles = new Set();
+
 
     // 대화창 모서리에 붙는 SKILL 버튼용 설명 팝업. 매치 내내 내용이 바뀌지
     // 않으므로 한 번만 만들어두고 hover로 보이기/숨기기만 한다.
@@ -208,7 +224,7 @@ class DaVinciCodeScene extends Phaser.Scene {
 
     this.mode = 'idle';
     // coin_toss | idle | pick_slot | pick_number | continue_choice
-    // | wrong_guess_decision | letter_redirect_pick | rewind_decision | over
+    // | wrong_guess_decision | wrong_guess_reveal_pick | rewind_decision | over
     this.selectedSlotPos = null;
     this.insightPickActive = false;
     this.menuOpen = false;
@@ -229,10 +245,9 @@ class DaVinciCodeScene extends Phaser.Scene {
       };
       this.applyPendingUIUpdateIfIdle();
     };
-    this.humanStrategy.onNeedWrongGuessDecision = (obs, usable, drawnIndex) => {
+    this.humanStrategy.onNeedWrongGuessDecision = (obs, usable) => {
       this.pendingUIUpdate = () => {
         this.wrongGuessUsable = usable;
-        this.wrongGuessDrawnIndex = drawnIndex;
         if (usable.length > 0) {
           // 쓸 수 있는 능력이 있으면 먼저 능력 사용 여부부터 물어본다.
           this.mode = 'wrong_guess_decision';
@@ -287,18 +302,18 @@ class DaVinciCodeScene extends Phaser.Scene {
 
     this.coinShadow = this.add.ellipse(startX, groundY + 44, 60, 14, 0x000000, 0.35);
     this.coinSprite = this.add.image(0, 0, 'coinFaceA').setDisplaySize(78, 78);
-    this.coinLabel = this.add.text(0, 52, '나', { fontFamily: FONT_BOLD, fontSize: '13px', color: '#ffe9a8' }).setOrigin(0.5);
-    this.coinContainer = this.add.container(startX, groundY, [this.coinSprite, this.coinLabel]);
+    this.coinContainer = this.add.container(startX, groundY, [this.coinSprite]);
 
     const startingPlayer = Math.random() < 0.5 ? 0 : 1;
     const winnerLabel = startingPlayer === 0 ? '나' : this.botName;
 
     const baseScaleX = this.coinSprite.scaleX;
     let showHuman = true;
+    // 회전 중엔 "나"/상대 이름 라벨을 굳이 같이 뒤집지 않는다 - 착지 직후 대사창과
+    // "선공/후공" 배너로 결과를 바로 알려주므로, 동전 자체는 순수 뒤집기 연출만 맡는다.
     const toggleFace = () => {
       showHuman = !showHuman;
       this.coinSprite.setTexture(showHuman ? 'coinFaceA' : 'coinFaceB');
-      this.coinLabel.setText(showHuman ? '나' : this.botName);
     };
     this.spinTween = this.tweens.add({
       targets: this.coinSprite,
@@ -336,7 +351,6 @@ class DaVinciCodeScene extends Phaser.Scene {
             this.spinTween.stop();
             this.coinSprite.setDisplaySize(78, 78);
             this.coinSprite.setTexture(startingPlayer === 0 ? 'coinFaceA' : 'coinFaceB');
-            this.coinLabel.setText(winnerLabel);
             this.coinShadow.setScale(1, 1).setAlpha(0.35);
 
             this.tweens.add({
@@ -374,12 +388,15 @@ class DaVinciCodeScene extends Phaser.Scene {
     // 엔진 생성자 안에서 초기 4장씩(총 8장)이 이미 다 정해졌다 - 여기서는 그걸
     // 셔플 후 한 장씩 번갈아 나눠주는 연출로 "보여주기"만 한다. 연출이 끝난
     // 뒤에야 실제 인터랙티브 렌더링과 매치 진행을 시작한다.
-    this.playInitialDealAnimation(() => {
+    this.playInitialDealAnimation(startingPlayer, () => {
       (this._dealPlaceholders || []).forEach((t) => t.destroy());
       this._dealPlaceholders = [];
       this._prevBotSlotIds = new Set(this.bot.hand.slots.map((s) => s.slotId));
       this._prevHumanSlotIds = new Set(this.human.hand.slots.map((s) => s.slotId));
       this.render();
+      // 초기 4장 배분 연출이 완전히 끝난 뒤에야 '엿보기' 같은 대전-시작 스킬을
+      // 발동시킨다(안 그러면 카드가 다 나눠지기도 전에 스킬 배너부터 뜬다).
+      this.engine.triggerMatchStart();
       // 엔진은 사람 입력을 기다리는 지점 외에는 UI를 전혀 기다려주지 않고
       // 즉시 진행한다 - 결과(누가 이겼는지)는 이벤트 큐를 다 소비한 뒤
       // this.engine.winner를 보고 처리한다(drainQueue 참고).
@@ -387,16 +404,18 @@ class DaVinciCodeScene extends Phaser.Scene {
     });
   }
 
-  // 대전 시작 직후 초기 4장씩 배분을, 실제 턴 진행과 똑같은 방식으로 보여준다:
-  // "나의 턴" 배너 -> 카드 뭉치 정렬 -> 그 자리에서 주인공 카드 4장이 채워짐,
-  // 그 다음 "상대 턴" 배너 -> 카드 뭉치 정렬 -> 봇 카드 4장이 채워짐. 실제 패
-  // 구성은 이미 엔진 생성자가 다 정해뒀으므로, 여기서는 순수 시각 연출만 담당한다.
-  playInitialDealAnimation(onComplete) {
+  // 대전 시작 직후 초기 4장씩 배분을 보여준다. "나의 턴"/"상대 턴" 배너는 실제
+  // 턴이 시작될 때만 쓰는 표시라서, 아직 턴이 시작되지도 않은 이 초기 배분
+  // 단계에서 같이 띄우면 실제 턴과 헷갈린다(코인토스로 막 정해진 선공 순서와도
+  // 어긋나 보일 수 있다). 그래서 여기서는 배너 없이 순서만 - 코인토스로 정해진
+  // 실제 선공 쪽부터 - 맞춰서 카드만 조용히 나눠준다.
+  playInitialDealAnimation(startingPlayer, onComplete) {
+    const firstSide = startingPlayer === 0 ? 'player' : 'bot';
+    const secondSide = firstSide === 'player' ? 'bot' : 'player';
     const dealSide = (side, next) => {
-      this.showBanner(side === 'player' ? '나의 턴' : '상대 턴');
-      this.time.delayedCall(1300, () => this.playInitialSpreadDeal(side, next));
+      this.playInitialSpreadDeal(side, next);
     };
-    dealSide('player', () => dealSide('bot', onComplete));
+    dealSide(firstSide, () => this.time.delayedCall(400, () => dealSide(secondSide, onComplete)));
   }
 
   // 카드 더미를 한 줄로 펼쳐 보여준 뒤, 그 중 4장을 side의 손패 자리로 하나씩
@@ -416,11 +435,13 @@ class DaVinciCodeScene extends Phaser.Scene {
       const x = startX + i * step;
       const back = this.makeDeckCardBack(x, rowY, i % 2 === 0 ? Color.BLACK : Color.WHITE);
       group.add(back);
-      cards.push({ back, x, y: rowY });
+      cards.push({
+        back, x, y: rowY, cx: x + TILE_W / 2, cy: rowY + TILE_H / 2,
+      });
     }
     cards.forEach((c, i) => {
       this.tweens.add({
-        targets: c.back, y: -14, duration: 220, delay: i * 25, yoyo: true, ease: 'Sine.easeOut',
+        targets: c.back, y: c.cy - 14, duration: 220, delay: i * 25, yoyo: true, ease: 'Sine.easeOut',
       });
     });
 
@@ -438,13 +459,11 @@ class DaVinciCodeScene extends Phaser.Scene {
       const slot = hand.slots[handIndex];
       const target = this.tileScreenPos(side, handIndex, false);
       const chosen = cards[dealCardIdxs[step2]];
-      const dx = target.x - chosen.x;
-      const dy = target.y - chosen.y;
 
       this.tweens.add({
         targets: chosen.back,
-        x: dx,
-        y: dy,
+        x: target.x + TILE_W / 2,
+        y: target.y + TILE_H / 2,
         duration: 380,
         ease: 'Back.easeIn',
         onComplete: () => {
@@ -466,6 +485,7 @@ class DaVinciCodeScene extends Phaser.Scene {
   async runMatchEnd(winner) {
     this.mode = 'over';
     const win = winner === this.human;
+    this.matchWon = win;
 
     if (win && this.skillInfo) {
       const skillKey = BOT_ITEM_ASSIGNMENT[this.botName];
@@ -484,20 +504,30 @@ class DaVinciCodeScene extends Phaser.Scene {
   }
 
   // ---- 엔진 이벤트 큐: 봇 턴처럼 이벤트가 한꺼번에 몰아쳐도, 하나씩 연출이
-  // 끝날 때까지 기다렸다가 다음 이벤트를 처리한다. ----
+  // 끝날 때까지 기다렸다가 다음 이벤트를 처리한다.
+  //
+  // onEngineEvent가 반환하는 Promise를 daVinciLogic.js의 MatchEngine이 await한다 -
+  // 이 자리가 엔진과 화면 연출의 속도를 묶어주는 유일한 지점이다. 이게 없으면(예전
+  // 처럼 fire-and-forget이면) 엔진은 사람 입력을 기다리는 지점 외엔 즉시 몇 턴이고
+  // 데이터를 앞질러 진행해버려서, 아직 이 연출 큐가 재생하지 못한 카드의 revealed
+  // 여부 같은 "미래 상태"가 render()에 그대로 새어나간다(상대가 방금 뽑은 카드
+  // 숫자가 나중 턴에 이미 공개돼버린 탓에 뽑는 순간부터 보이는 등). ----
 
   onEngineEvent(event) {
-    this.eventQueue.push(event);
-    this.drainQueue();
+    return new Promise((resolve) => {
+      this.eventQueue.push({ event, resolve });
+      this.drainQueue();
+    });
   }
 
   async drainQueue() {
     if (this.draining) return;
     this.draining = true;
     while (this.eventQueue.length > 0) {
-      const event = this.eventQueue.shift();
+      const { event, resolve } = this.eventQueue.shift();
       // eslint-disable-next-line no-await-in-loop
       await this.handleEvent(event);
+      resolve();
       if (this.engine && this.engine.winner && this.eventQueue.length === 0) {
         // match_over 이벤트까지 다 처리한 뒤에 결과 화면으로 넘어간다.
         this.runMatchEnd(this.engine.winner);
@@ -631,9 +661,12 @@ class DaVinciCodeScene extends Phaser.Scene {
     this.opponentDialogueText.setText(text);
   }
 
-  // 매트 상단의 짧은 안내문("지목할 숫자를 고르세요" 등)을 갱신한다.
+  // 안내문("지목할 숫자를 고르세요" 등)을 주인공 대화창에 띄운다. 매트 중앙에
+  // 따로 띄우던 걸 주인공 대화창으로 옮겼다. 안내할 게 없을 때(빈 문자열)는
+  // 아무것도 안 한다 - 여기서 매번 지워버리면 방금 setPlayerLine()으로 띄운
+  // "정답이다!" 같은 반응 대사가 render() 직후 바로 지워져 버린다.
   setGuide(text) {
-    this.guideText.setText(text);
+    if (text) this.playerDialogueText.setText(text);
   }
 
   // 대화창 텍스트를 한 글자씩 타이핑하듯 출력한다. 대전 시작 시 인트로 대사에 쓴다.
@@ -703,29 +736,78 @@ class DaVinciCodeScene extends Phaser.Scene {
     });
   }
 
+  // side 손패의 장수에 맞춰 줄 전체가 매트 가로 중앙(400)에 오도록 시작 x를
+  // 계산한다 - 카드가 몇 장이든(4장이든 10장이든) 줄이 항상 가운데 정렬되고,
+  // 카드가 늘어나면 줄 전체가 양옆으로 고르게 넓어진다.
+  rowStartX(side) {
+    const count = Math.max(1, (side === 'bot' ? this.bot : this.human).hand.slots.length);
+    const rowWidth = (count - 1) * CARD_STEP + TILE_W;
+    return 400 - rowWidth / 2;
+  }
+
   // side('bot'|'player') + index로 화면상의 타일 좌상단 좌표를 구한다.
   // 내 카드(player)가 상대에게 들켰을 때만 REVEAL_LIFT만큼 위로 들어올린다.
   // 상대(bot) 쪽은 나중에 카드 뒷면 디자인 자체가 공개 여부를 구분해줄 것이므로
   // 들어올리지 않는다.
   tileScreenPos(side, index, revealed) {
-    const x = CARD_START_X + index * CARD_STEP;
+    const x = this.rowStartX(side) + index * CARD_STEP;
     const baseY = side === 'bot' ? BOT_ROW_Y : PLAYER_ROW_Y;
     const lift = side === 'player' && revealed ? REVEAL_LIFT : 0;
     return { x, y: baseY - lift };
   }
 
+  // 연출 오버레이가 얹히는 동안 그 자리의 진짜 타일을 숨긴다. 연출 도중에도
+  // render()가 다시 돌 수 있으므로(오답 연출은 바로 뒤에서 finish()가 render()를
+  // 호출한다) 숨김 상태를 hiddenTiles에 남겨서 새로 그려지는 타일에도 계속
+  // 적용되게 한다. 반환한 키를 restoreTile()에 그대로 넘기면 복구된다.
+  suppressTile(side, index) {
+    const key = `${side}:${index}`;
+    this.hiddenTiles.add(key);
+    const tile = this.tileRefs ? this.tileRefs.get(key) : null;
+    if (tile && tile.scene) tile.setVisible(false);
+    return key;
+  }
+
+  restoreTile(key) {
+    this.hiddenTiles.delete(key);
+    const tile = this.tileRefs ? this.tileRefs.get(key) : null;
+    if (tile && tile.scene) tile.setVisible(true);
+  }
+
   // 오답 연출: 그 자리 카드 위에 빨간 테두리 + 좌우 진동을 재생하는 임시 오버레이.
+  // 이 오버레이는 render()가 그 자리에 그리는 타일과 색/숫자/위치가 똑같아야 한다.
+  // 예전엔 검정 배경 + '?'로 하드코딩돼 있어서, 흰 카드에서 틀리면 색이 바뀐 것처럼
+  // 보이고 좌우로 흔들릴 때 아래 타일이 가장자리로 삐져나왔다.
   flashWrongTile(side, index) {
-    const { x, y } = this.tileScreenPos(side, index, false);
+    const owner = side === 'bot' ? this.bot : this.human;
+    const slot = owner.hand.slots[index];
+    const block = slot ? slot.block : null;
+    const revealed = slot ? slot.revealed : false;
+    // 내 패는 항상 숫자까지 보이고, 상대 패는 공개된 자리만 숫자가 보인다(render()와 동일).
+    const showNumber = block != null && (side === 'player' || revealed);
+
+    const { x, y } = this.tileScreenPos(side, index, revealed);
     const cx = x + TILE_W / 2;
     const cy = y + TILE_H / 2;
 
-    const face = this.add.graphics();
-    face.fillStyle(0x000000, 0.3);
-    face.fillRect(-TILE_W / 2 + 3, -TILE_H / 2 + 3, TILE_W, TILE_H);
-    face.fillStyle(0x1f1f22, 1);
-    face.fillRect(-TILE_W / 2, -TILE_H / 2, TILE_W, TILE_H);
-    const mark = this.add.text(0, 0, '?', { fontFamily: FONT_BOLD, fontSize: '20px', color: '#f0ece0' }).setOrigin(0.5);
+    const isBlack = !block || block.color === Color.BLACK;
+    const textColor = isBlack ? '#d6ccb8' : '#0c2512';
+    const cardKey = showNumber
+      ? (isBlack ? 'cardFrontBlack' : 'cardFrontWhite')
+      : (isBlack ? 'cardBackBlack' : 'cardBackWhite');
+
+    const hiddenKey = this.suppressTile(side, index);
+
+    const shadow = this.add.graphics();
+    shadow.fillStyle(0x000000, 0.35);
+    shadow.fillRoundedRect(-TILE_W / 2 + 3, -TILE_H / 2 + 3, TILE_W, TILE_H, 6);
+    const face = this.add.image(0, 0, cardKey).setDisplaySize(TILE_W, TILE_H);
+
+    const centerYFrac = NUMBER_CENTER_Y_FRAC[isBlack ? 'black' : 'white'];
+    const textY = -TILE_H / 2 + TILE_H * centerYFrac;
+    const mark = this.add.text(0, showNumber ? textY : 0, showNumber ? String(block.number) : '', {
+      fontFamily: FONT_NUMBER, fontSize: `${Math.round(TILE_H * 0.34)}px`, color: textColor,
+    }).setOrigin(0.5);
 
     const border = this.add.graphics();
     const drawBorder = (alpha) => {
@@ -735,7 +817,7 @@ class DaVinciCodeScene extends Phaser.Scene {
     };
     drawBorder(1);
 
-    const overlay = this.add.container(cx, cy, [face, mark, border]);
+    const overlay = this.add.container(cx, cy, [shadow, face, mark, border]);
     overlay.setDepth(900);
 
     const shakeOffsets = [7, -7, 5, -5, 3, -3, 0];
@@ -759,7 +841,10 @@ class DaVinciCodeScene extends Phaser.Scene {
       duration: 900,
       delay: 300,
       onUpdate: (tw) => drawBorder(tw.getValue() / 100),
-      onComplete: () => overlay.destroy(),
+      onComplete: () => {
+        this.restoreTile(hiddenKey);
+        overlay.destroy();
+      },
     });
   }
 
@@ -773,40 +858,47 @@ class DaVinciCodeScene extends Phaser.Scene {
     const cx = x + TILE_W / 2;
     const cy = y + TILE_H / 2;
 
-    const bg = block.color === Color.BLACK ? 0x1f1f22 : 0xf3efe2;
-    const borderColor = block.color === Color.BLACK ? 0x50504e : 0x2b2620;
-    const textColor = block.color === Color.BLACK ? '#f0ece0' : '#1a1a1a';
+    const isBlack = block.color === Color.BLACK;
+    const textColor = isBlack ? '#d6ccb8' : '#0c2512';
+    const backKey = isBlack ? 'cardBackBlack' : 'cardBackWhite';
+    const frontKey = isBlack ? 'cardFrontBlack' : 'cardFrontWhite';
+    const centerYFrac = NUMBER_CENTER_Y_FRAC[isBlack ? 'black' : 'white'];
+    const textY = -TILE_H / 2 + TILE_H * centerYFrac;
 
-    const g = this.add.graphics();
-    const label = this.add.text(0, 0, '', { fontFamily: FONT_BOLD, fontSize: '20px', color: textColor }).setOrigin(0.5);
+    const shadow = this.add.graphics();
+    shadow.fillStyle(0x000000, 0.35);
+    shadow.fillRoundedRect(-TILE_W / 2 + 3, -TILE_H / 2 + 3, TILE_W, TILE_H, 6);
+    const face = this.add.image(0, 0, backKey).setDisplaySize(TILE_W, TILE_H);
+    const label = this.add.text(0, 0, '', { fontFamily: FONT_NUMBER, fontSize: `${Math.round(TILE_H * 0.34)}px`, color: textColor }).setOrigin(0.5);
 
     const drawFace = (revealed) => {
-      g.clear();
-      g.fillStyle(0x000000, 0.3);
-      g.fillRect(-TILE_W / 2 + 3, -TILE_H / 2 + 3, TILE_W, TILE_H);
       if (revealed) {
-        g.fillStyle(bg, 1);
-        g.fillRect(-TILE_W / 2, -TILE_H / 2, TILE_W, TILE_H);
-        g.lineStyle(3, borderColor, 1);
-        g.strokeRect(-TILE_W / 2, -TILE_H / 2, TILE_W, TILE_H);
-        label.setColor(textColor);
+        face.setTexture(frontKey);
+        label.setPosition(0, textY);
         label.setText(String(block.number));
       } else {
-        // 뒤집기 전 '숨김' 상태도 실제 타일(makeTile)과 완전히 똑같이 그린다 - 색은
-        // 이미 공개돼 있으니 그대로 칠하고 숫자만 비운다. 예전엔 이 부분이 무조건
-        // 검정+물음표로 하드코딩돼 있어서, 흰 카드가 뒤집히기 시작하는 순간 갑자기
-        // 색이 바뀌어 카드 2장이 겹친 것처럼 보이는 원인이었다.
-        g.fillStyle(bg, 1);
-        g.fillRect(-TILE_W / 2, -TILE_H / 2, TILE_W, TILE_H);
-        g.lineStyle(3, borderColor, 1);
-        g.strokeRect(-TILE_W / 2, -TILE_H / 2, TILE_W, TILE_H);
+        // 뒤집기 전엔 뒷면 그림을 그대로 보여준다 - 실제 손패 타일(makeTile)의
+        // 미공개 상태와 똑같아서, 뒤집히기 직전까지 다른 곳과 이질감이 없다.
+        face.setTexture(backKey);
         label.setText('');
       }
     };
     drawFace(false);
 
-    const overlay = this.add.container(cx, cy, [g, label]);
+    const overlay = this.add.container(cx, cy, [shadow, face, label]);
     overlay.setDepth(900);
+
+    // 이 오버레이는 render()가 이미 그려둔 '진짜' 타일 위에 얹힌다. 오버레이가
+    // scaleX 0까지 접히는 순간이나 위로 들어올려지는 동안 아래 타일이 그대로
+    // 드러나서, 카드 뒤에 카드가 한 장 더 있는 것처럼 보인다. 연출이 끝날
+    // 때까지 아래 타일을 숨겨두고, 오버레이를 치울 때 함께 되돌린다.
+    const hiddenKey = this.suppressTile(side, index);
+
+    const clearOverlay = () => {
+      this.restoreTile(hiddenKey);
+      overlay.destroy();
+      if (onComplete) onComplete();
+    };
 
     const lift = side === 'player' ? REVEAL_LIFT : 0;
 
@@ -831,17 +923,11 @@ class DaVinciCodeScene extends Phaser.Scene {
                 duration: 260,
                 ease: 'Sine.easeOut',
                 onComplete: () => {
-                  this.time.delayedCall(300, () => {
-                    overlay.destroy();
-                    if (onComplete) onComplete();
-                  });
+                  this.time.delayedCall(300, clearOverlay);
                 },
               });
             } else {
-              this.time.delayedCall(600, () => {
-                overlay.destroy();
-                if (onComplete) onComplete();
-              });
+              this.time.delayedCall(600, clearOverlay);
             }
           },
         });
@@ -857,8 +943,9 @@ class DaVinciCodeScene extends Phaser.Scene {
       .filter((i) => i !== null);
     const decoys = Phaser.Utils.Array.Shuffle(hiddenIndices.slice()).slice(0, 2);
     const sequence = [...decoys, targetIndex];
+    const rowStartX = this.rowStartX('player');
     const positions = sequence.map((pos) => ({
-      x: CARD_START_X + pos * CARD_STEP + TILE_W / 2,
+      x: rowStartX + pos * CARD_STEP + TILE_W / 2,
       y: PLAYER_ROW_Y - 26,
     }));
     this.playCursorSweep(positions, onComplete);
@@ -913,8 +1000,7 @@ class DaVinciCodeScene extends Phaser.Scene {
   playDrawPickSequence(side, newIndex, onComplete) {
     const hand = side === 'bot' ? this.bot.hand : this.human.hand;
     const newSlot = hand.slots[newIndex];
-    const targetX = CARD_START_X + newIndex * CARD_STEP;
-    const targetY = side === 'bot' ? BOT_ROW_Y : PLAYER_ROW_Y;
+    const { x: targetX, y: targetY } = this.tileScreenPos(side, newIndex, false);
 
     // 남은 카드 더미 전체 중에서 고를 수 있어야 하므로, 개수는 6장 고정이 아니라
     // 지금 뽑기 직전 시점에 더미에 있던 카드 수(엔진에서 이미 한 장 뽑아간 뒤이므로 +1)로 맞춘다.
@@ -936,14 +1022,16 @@ class DaVinciCodeScene extends Phaser.Scene {
       // 실제로 뽑힐 카드의 색과는 무관한 장식용 흑/백 번갈이 - 셔플된 더미처럼 보이게 한다.
       const back = this.makeDeckCardBack(x, rowY, i % 2 === 0 ? Color.BLACK : Color.WHITE);
       group.add(back);
-      cards.push({ back, x, y: rowY });
+      cards.push({
+        back, x, y: rowY, cx: x + TILE_W / 2, cy: rowY + TILE_H / 2,
+      });
     }
 
     // 셔플 연출: 순서대로 살짝 튀어오르는 웨이브
     cards.forEach((c, i) => {
       this.tweens.add({
         targets: c.back,
-        y: -14,
+        y: c.cy - 14,
         duration: 220,
         delay: i * 70,
         yoyo: true,
@@ -957,19 +1045,19 @@ class DaVinciCodeScene extends Phaser.Scene {
         this.tweens.add({
           targets: c.back,
           alpha: 0,
-          y: -30,
+          y: c.cy - 30,
           duration: 300,
           ease: 'Sine.easeIn',
           onComplete: () => c.back.destroy(),
         });
       });
       const chosen = cards[chosenIdx];
-      const dx = targetX - chosen.x;
-      const dy = targetY - chosen.y;
       this.tweens.add({
         targets: chosen.back,
-        x: dx,
-        y: dy,
+        x: targetX + TILE_W / 2,
+        y: targetY + TILE_H / 2,
+        scaleX: 1,
+        scaleY: 1,
         duration: 500,
         delay: 200,
         ease: 'Back.easeIn',
@@ -994,6 +1082,20 @@ class DaVinciCodeScene extends Phaser.Scene {
           hit.on('pointerdown', () => {
             cards.forEach((cc) => { if (cc.hit) cc.hit.destroy(); });
             pickOne(i);
+          });
+          // 뽑을 카드를 고르는 줄에서도 손패 카드와 똑같이, 마우스를 올린
+          // 카드만 확대되게 한다.
+          hit.on('pointerover', () => {
+            c.back.setDepth(950);
+            this.tweens.add({
+              targets: c.back, scaleX: 1.18, scaleY: 1.18, duration: 120, ease: 'Sine.easeOut',
+            });
+          });
+          hit.on('pointerout', () => {
+            c.back.setDepth(920);
+            this.tweens.add({
+              targets: c.back, scaleX: 1, scaleY: 1, duration: 120, ease: 'Sine.easeOut',
+            });
           });
           c.hit = hit;
           group.add(hit);
@@ -1032,17 +1134,31 @@ class DaVinciCodeScene extends Phaser.Scene {
       return { x, y, displayBlock };
     });
 
-    const rowY = positions[0].y;
+    // 손패가 원래 놓여 있던 줄의 한가운데(카드 중심 기준). 여기로 모였다가 섞이고
+    // 다시 제자리로 펼쳐진다. rowY는 들켜서 위로 들린 카드에 휘둘리지 않도록
+    // positions[0]가 아니라 줄의 기준선을 그대로 쓴다.
+    const rowY = side === 'bot' ? BOT_ROW_Y : PLAYER_ROW_Y;
     const centerX = positions.reduce((sum, p) => sum + p.x, 0) / positions.length;
+    const mergeX = centerX + TILE_W / 2;
+    const mergeY = rowY + TILE_H / 2;
+
+    // 연출 내내 직전 렌더의 진짜 타일이 오버레이 뒤에 그대로 남아 있어서, 카드가
+    // 가운데로 모이는 순간 원래 자리에 카드가 한 겹 더 보인다. 다 숨겼다가
+    // 마지막 render()에서 새 배치로 다시 그린다.
+    const hiddenKeys = positions.map((_, i) => this.suppressTile(side, i));
 
     const overlays = positions.map((p) => {
+      // makeTile의 컨테이너 원점이 카드 중심이라(호버 확대가 카드 자기 자신을
+      // 기준으로 커지게 하려고 그렇게 만들어뒀다), 축소/확대가 자연히 카드
+      // 자리에서 일어난다 - 여기서 따로 중심을 맞춰줄 필요가 없다.
       const tile = this.makeTile(p.x, p.y, p.displayBlock, null);
       tile.setDepth(910);
-      return { tile, dx: centerX - p.x, dy: rowY - p.y };
+      return { tile, homeX: tile.x, homeY: tile.y };
     });
 
     const finishReflow = () => {
       overlays.forEach((o) => o.tile.destroy());
+      hiddenKeys.forEach((k) => this.restoreTile(k));
       this.render();
       onComplete();
     };
@@ -1052,8 +1168,8 @@ class DaVinciCodeScene extends Phaser.Scene {
       overlays.forEach((o, idx) => {
         this.tweens.add({
           targets: o.tile,
-          x: 0,
-          y: 0,
+          x: o.homeX,
+          y: o.homeY,
           scaleX: 1,
           scaleY: 1,
           duration: 360,
@@ -1067,37 +1183,62 @@ class DaVinciCodeScene extends Phaser.Scene {
       });
     };
 
+    // 가운데 겹쳐진 상태에서 좌우로 한 번 엇갈렸다 돌아오는 짧은 '섞기'.
+    const shuffleAtCenter = (onDone) => {
+      let doneCount = 0;
+      overlays.forEach((o, idx) => {
+        this.tweens.add({
+          targets: o.tile,
+          x: mergeX + (idx % 2 === 0 ? -16 : 16),
+          duration: 90,
+          delay: idx * 12,
+          yoyo: true,
+          repeat: 1,
+          ease: 'Sine.easeInOut',
+          onComplete: () => {
+            doneCount += 1;
+            if (doneCount === overlays.length) onDone();
+          },
+        });
+      });
+    };
+
     let mergedCount = 0;
     overlays.forEach((o) => {
       this.tweens.add({
         targets: o.tile,
-        x: o.dx,
-        y: o.dy,
+        x: mergeX,
+        y: mergeY,
         scaleX: 0.55,
         scaleY: 0.55,
         duration: 260,
         ease: 'Sine.easeIn',
         onComplete: () => {
           mergedCount += 1;
-          if (mergedCount === overlays.length) this.time.delayedCall(120, spreadOut);
+          if (mergedCount === overlays.length) {
+            this.time.delayedCall(120, () => shuffleAtCenter(spreadOut));
+          }
         },
       });
     });
   }
 
-  // 현재 모드에 맞는 짧은 안내문. 대화창(대사 전용)과 분리해서 매트 상단에 둔다.
+  // 현재 모드에 맞는 짧은 안내문. 주인공 대화창에 표시된다(setGuide 참고).
   static GUIDE_BY_MODE = {
     pick_slot: '상대의 카드 숫자 선택',
     pick_number: '지목할 숫자를 고르세요',
     continue_choice: '계속 도전하시겠습니까?',
     wrong_guess_decision: '사용할 능력을 선택하세요',
     wrong_guess_reveal_pick: '공개할 내 카드를 선택하세요',
-    letter_redirect_pick: '대신 공개할 카드를 선택하세요',
     rewind_decision: '되감기를 사용하시겠습니까?',
   };
 
   render() {
     this.dynamicLayer.removeAll(true);
+    // 뒤집기 같은 연출 오버레이가 "그 자리의 진짜 타일"을 잠시 숨길 수 있도록
+    // side+index -> 타일 컨테이너 참조를 들고 있는다. 위 removeAll(true)가 매
+    // 렌더마다 이전 타일을 파괴하므로 맵도 여기서 같이 새로 만든다.
+    this.tileRefs = new Map();
     this.setGuide(DaVinciCodeScene.GUIDE_BY_MODE[this.mode] || '');
 
     // 새로 뽑혀서 손패에 추가된 카드(이전 render()엔 없던 slotId)는
@@ -1122,6 +1263,8 @@ class DaVinciCodeScene extends Phaser.Scene {
       const displayBlock = { color: slot.block.color, number: slot.revealed ? slot.block.number : null };
       const tile = this.makeTile(x, y, displayBlock, onClick);
       this.dynamicLayer.add(tile);
+      this.tileRefs.set(`bot:${i}`, tile);
+      if (this.hiddenTiles.has(`bot:${i}`)) tile.setVisible(false);
       if (this.mode === 'pick_number' && i === this.selectedSlotPos) {
         const hg = this.add.graphics();
         hg.lineStyle(4, 0xe8c86a, 1);
@@ -1131,18 +1274,18 @@ class DaVinciCodeScene extends Phaser.Scene {
       if (!prevBotIds.has(slot.slotId)) this.playCardEnterAnim(tile);
     });
 
-    // 내 패 - 항상 전부 공개된 상태로 표시. '미끼' 사용 시, 혹은 오답 페널티로
-    // 공개할 카드를 직접 고를 때 클릭 가능해진다.
+    // 내 패 - 항상 전부 공개된 상태로 표시. 오답 페널티로 공개할 카드를 직접
+    // 고를 때 클릭 가능해진다.
     this.human.hand.slots.forEach((slot, i) => {
       curHumanIds.add(slot.slotId);
       const { x, y } = this.tileScreenPos('player', i, slot.revealed);
-      const isLetterPick = this.mode === 'letter_redirect_pick' && !slot.revealed && i !== this.wrongGuessDrawnIndex;
       const isRevealPick = this.mode === 'wrong_guess_reveal_pick' && !slot.revealed;
       let onClick = null;
-      if (isLetterPick) onClick = () => this.onPickLetterRedirect(i);
-      else if (isRevealPick) onClick = () => this.onPickWrongGuessReveal(i);
+      if (isRevealPick) onClick = () => this.onPickWrongGuessReveal(i);
       const tile = this.makeTile(x, y, slot.block, onClick);
       this.dynamicLayer.add(tile);
+      this.tileRefs.set(`player:${i}`, tile);
+      if (this.hiddenTiles.has(`player:${i}`)) tile.setVisible(false);
       if (!prevHumanIds.has(slot.slotId)) this.playCardEnterAnim(tile);
     });
 
@@ -1178,7 +1321,9 @@ class DaVinciCodeScene extends Phaser.Scene {
       this.dynamicLayer.add(this.makeSmallSkillButton(myBtnX - 78, menuBtnY, 70, 26, true, () => {
         this.bgmDavinci.stop();
         this.scale.resize(960, 540);
-        this.scene.start('MapScene', { mapKey: this.returnMapKey });
+        this.scene.start('MapScene', {
+          mapKey: this.returnMapKey, returnX: this.returnX, returnY: this.returnY,
+        });
       }, null, '나가기'));
     }
 
@@ -1259,11 +1404,22 @@ class DaVinciCodeScene extends Phaser.Scene {
     }
 
     if (this.mode === 'over') {
-      this.dynamicLayer.add(this.makeChoiceButton(ACTION_X, ACTION_Y + 40, '맵으로 돌아가기', () => {
-        // 마을 게임 화면 크기(960x540)로 되돌려놓고 원래 있던 맵으로 돌아간다.
+      // 이기면 심문 선택지 화면(SuspectChoiceScene)으로, 지면 예전처럼 대화를
+      // 걸었던 자리로 바로 돌아간다.
+      const label = this.matchWon ? '심문 계속하기' : '맵으로 돌아가기';
+      this.dynamicLayer.add(this.makeChoiceButton(ACTION_X, ACTION_Y + 40, label, () => {
         this.bgmDavinci.stop();
         this.scale.resize(960, 540);
-        this.scene.start('MapScene', { mapKey: this.returnMapKey });
+        if (this.matchWon) {
+          this.scene.start('SuspectChoiceScene', {
+            npcId: this.npcId, npcName: this.npcName, returnMapKey: this.returnMapKey,
+            returnX: this.returnX, returnY: this.returnY,
+          });
+        } else {
+          this.scene.start('MapScene', {
+            mapKey: this.returnMapKey, returnX: this.returnX, returnY: this.returnY,
+          });
+        }
       }));
     }
   }
@@ -1298,37 +1454,25 @@ class DaVinciCodeScene extends Phaser.Scene {
     if (key === 'bloodyTowel') {
       this.humanStrategy.markUsed('bloodyTowel');
       this.mode = 'idle';
-      this.humanStrategy.resolveWrongGuessDecision({ skipReveal: true, redirectIndex: null, retryWithoutPenalty: false });
+      this.humanStrategy.resolveWrongGuessDecision({ skipReveal: true, retryWithoutPenalty: false, skillLabel: ITEM_SKILLS.bloodyTowel.skill });
       this.render();
       return;
     }
-    if (key === 'sickle') {
-      this.humanStrategy.markUsed('sickle');
+    if (key === 'sickle' || key === 'speedRead') {
+      this.humanStrategy.markUsed(key);
       this.mode = 'idle';
-      this.humanStrategy.resolveWrongGuessDecision({ skipReveal: false, redirectIndex: null, retryWithoutPenalty: true });
-      this.render();
-      return;
-    }
-    if (key === 'letter') {
-      this.mode = 'letter_redirect_pick';
+      this.humanStrategy.resolveWrongGuessDecision({ skipReveal: false, retryWithoutPenalty: true, skillLabel: ITEM_SKILLS[key].skill });
       this.render();
     }
-  }
-
-  onPickLetterRedirect(idx) {
-    this.humanStrategy.markUsed('letter');
-    this.mode = 'idle';
-    this.humanStrategy.resolveWrongGuessDecision({ skipReveal: false, redirectIndex: idx, retryWithoutPenalty: false });
-    this.render();
   }
 
   // 능력을 안 썼을 때(또는 애초에 쓸 능력이 없을 때) 오답 페널티로 공개할
-  // 내 카드를 직접 고르는 단계. '미끼' 능력과 달리 스킬을 소모하지 않으므로
-  // skill_used 이벤트 없이 revealIndex로만 엔진에 전달한다.
+  // 내 카드를 직접 고르는 단계. 스킬을 소모하지 않으므로 skill_used 이벤트 없이
+  // revealIndex로만 엔진에 전달한다.
   onPickWrongGuessReveal(idx) {
     this.mode = 'idle';
     this.humanStrategy.resolveWrongGuessDecision({
-      skipReveal: false, redirectIndex: null, revealIndex: idx, retryWithoutPenalty: false,
+      skipReveal: false, revealIndex: idx, retryWithoutPenalty: false,
     });
     this.render();
   }
@@ -1336,71 +1480,76 @@ class DaVinciCodeScene extends Phaser.Scene {
   // ---- 픽셀아트 스타일 UI 조각들: 전부 각진 모서리 + 굵은 테두리 + 그림자 오프셋으로 그린다 ----
 
   // block: { color, number } 형태. number가 null이면 미공개 - 색은 그대로 칠하되 숫자만 비운다.
+  // x,y는 여전히 타일의 좌상단(다른 모든 호출부와 동일)이지만, 실제로는 카드
+  // 중심을 기준으로 그린 뒤 컨테이너를 그 중심 좌표에 놓는다 - 클릭 가능한
+  // 카드에 호버 확대 효과를 줄 때, 카드 자기 자신을 기준으로 커지게 하려면
+  // (다른 방향으로 밀리지 않고 제자리에서 커지려면) 컨테이너의 원점이 카드
+  // 중심과 같아야 하기 때문이다.
+  // 미공개(block.number === null)면 카드 뒷면 그림을, 공개면 카드 앞면 그림 +
+  // Blacksword 폰트로 그린 숫자를 쓴다. 흰/검 카드 색은 block.color로 고른다.
   makeTile(x, y, block, onClick) {
-    const border = 0x2b2620;
-    const g = this.add.graphics();
-    g.fillStyle(0x000000, 0.3);
-    g.fillRect(x + 3, y + 3, TILE_W, TILE_H);
-
     const isHidden = block.number === null;
-    // 지금 받은 카드 그림은 "뒷면" 디자인이라, 미공개(숨겨진) 카드에만 쓴다. 나중에
-    // 앞면(공개된 숫자 카드) 디자인이 생기면 cardBlackFront/cardWhiteFront 키로
-    // 채워서 아래 frontKey 자리에 로드해주면 공개된 카드도 그림으로 바뀐다.
-    const backKey = block.color === Color.BLACK ? 'cardBlack' : 'cardWhite';
-    const frontKey = block.color === Color.BLACK ? 'cardBlackFront' : 'cardWhiteFront';
-    const imgKey = isHidden ? backKey : frontKey;
-    const hasImg = this.cardTheme && this.textures.exists(imgKey);
+    const isBlack = block.color === Color.BLACK;
+    const cardKey = isHidden
+      ? (isBlack ? 'cardBackBlack' : 'cardBackWhite')
+      : (isBlack ? 'cardFrontBlack' : 'cardFrontWhite');
 
-    const children = [g];
-    if (hasImg) {
-      const cardImg = this.add.image(x + TILE_W / 2, y + TILE_H / 2, imgKey).setDisplaySize(TILE_W, TILE_H);
-      children.push(cardImg);
-    } else {
-      const bg = block.color === Color.BLACK ? 0x1f1f22 : 0xf3efe2;
-      g.fillStyle(bg, 1);
-      g.fillRect(x, y, TILE_W, TILE_H);
-      g.lineStyle(3, border, 1);
-      g.strokeRect(x, y, TILE_W, TILE_H);
-    }
+    const shadow = this.add.graphics();
+    shadow.fillStyle(0x000000, 0.35);
+    shadow.fillRoundedRect(-TILE_W / 2 + 3, -TILE_H / 2 + 3, TILE_W, TILE_H, 6);
+    const face = this.add.image(0, 0, cardKey).setDisplaySize(TILE_W, TILE_H);
 
-    // 카드 그림이 있으면 그 자체로 앞/뒷면이 표현되니 "?"/숫자 텍스트는 안 그린다.
-    // 그림이 없는 경우(테마 없는 봇, 혹은 아직 없는 앞면)만 예전처럼 텍스트로 표시한다.
-    if (!hasImg) {
-      const label = isHidden ? '' : String(block.number);
-      const textColor = block.color === Color.BLACK ? '#f0ece0' : '#1a1a1a';
-      const text = this.add.text(x + TILE_W / 2, y + TILE_H / 2, label, {
-        fontFamily: FONT_BOLD, fontSize: '20px', color: textColor,
+    const children = [shadow, face];
+    if (!isHidden) {
+      const textColor = isBlack ? '#d6ccb8' : '#0c2512';
+      const centerYFrac = NUMBER_CENTER_Y_FRAC[isBlack ? 'black' : 'white'];
+      const textY = -TILE_H / 2 + TILE_H * centerYFrac;
+      const text = this.add.text(0, textY, String(block.number), {
+        fontFamily: FONT_NUMBER, fontSize: `${Math.round(TILE_H * 0.34)}px`, color: textColor,
       }).setOrigin(0.5);
       children.push(text);
     }
 
+    let hitZone = null;
     if (onClick) {
-      const hitZone = this.add.zone(x, y, TILE_W, TILE_H).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+      hitZone = this.add.zone(0, 0, TILE_W, TILE_H).setOrigin(0.5).setInteractive({ useHandCursor: true });
       hitZone.on('pointerdown', onClick);
       children.push(hitZone);
     }
-    return this.add.container(0, 0, children);
+
+    const container = this.add.container(x + TILE_W / 2, y + TILE_H / 2, children);
+
+    if (hitZone) {
+      // 클릭 가능한 카드에 마우스를 올리면 그 카드만 살짝 확대되며 앞으로
+      // 나온다 - 지금 고를 수 있는 카드라는 걸 알려주는 힌트.
+      hitZone.on('pointerover', () => {
+        container.setDepth(950);
+        this.tweens.add({
+          targets: container, scaleX: 1.18, scaleY: 1.18, duration: 120, ease: 'Sine.easeOut',
+        });
+      });
+      hitZone.on('pointerout', () => {
+        container.setDepth(0);
+        this.tweens.add({
+          targets: container, scaleX: 1, scaleY: 1, duration: 120, ease: 'Sine.easeOut',
+        });
+      });
+    }
+
+    return container;
   }
 
-  // 남은 카드 더미 표시나 draw-pick 스프레드에 쓰는 카드 뒷면. 진짜 카드 뒷면
-  // 아트가 아직 없어서, 흑/백 두 가지 톤 + 가운데 작은 장식으로 임시 디자인을 낸다.
-  // 물음표는 없다 (뒷면 디자인 자체가 '미공개'라는 걸 알려주는 역할이므로).
+  // 남은 카드 더미 표시나 draw-pick 스프레드에 쓰는 카드 뒷면 그림.
+  // makeTile과 마찬가지로 컨테이너 원점을 카드 중심에 둔다 - 카드 뭉치에서
+  // 뽑을 카드를 고를 때도 호버로 확대하면 카드 자기 자신을 기준으로 커져야
+  // 하기 때문이다.
   makeDeckCardBack(x, y, color = Color.BLACK) {
-    const backKey = color === Color.BLACK ? 'cardBlack' : 'cardWhite';
-    const g = this.add.graphics();
-    g.fillStyle(0x000000, 0.3);
-    g.fillRect(x + 3, y + 3, TILE_W, TILE_H);
-    if (this.cardTheme && this.textures.exists(backKey)) {
-      const cardImg = this.add.image(x + TILE_W / 2, y + TILE_H / 2, backKey).setDisplaySize(TILE_W, TILE_H);
-      return this.add.container(0, 0, [g, cardImg]);
-    }
-    const bg = color === Color.BLACK ? 0x1f1f22 : 0xf3efe2;
-    const border = color === Color.BLACK ? 0x50504e : 0x2b2620;
-    g.fillStyle(bg, 1);
-    g.fillRect(x, y, TILE_W, TILE_H);
-    g.lineStyle(3, border, 1);
-    g.strokeRect(x, y, TILE_W, TILE_H);
-    return this.add.container(0, 0, [g]);
+    const shadow = this.add.graphics();
+    shadow.fillStyle(0x000000, 0.35);
+    shadow.fillRoundedRect(-TILE_W / 2 + 3, -TILE_H / 2 + 3, TILE_W, TILE_H, 6);
+    const backTexture = color === Color.BLACK ? 'cardBackBlack' : 'cardBackWhite';
+    const face = this.add.image(0, 0, backTexture).setDisplaySize(TILE_W, TILE_H);
+    return this.add.container(x + TILE_W / 2, y + TILE_H / 2, [shadow, face]);
   }
 
   // 새로 뽑힌 카드가 손패에 나타날 때 톡 튀어오르듯 커지는 등장 연출.
@@ -1500,8 +1649,6 @@ class DaVinciCodeScene extends Phaser.Scene {
     const g = this.add.graphics();
     g.fillStyle(bgColor, 1);
     g.fillRect(x, y, w, h);
-    g.lineStyle(4, 0x2b2620, 1);
-    g.strokeRect(x, y, w, h);
 
     const cols = SUSPECT_SILHOUETTE[0].length;
     const rows = SUSPECT_SILHOUETTE.length;
@@ -1525,81 +1672,49 @@ class DaVinciCodeScene extends Phaser.Scene {
     const g = this.add.graphics();
     g.fillStyle(0xf5f0e0, 1);
     g.fillRect(x, y, w, h);
-    g.lineStyle(4, 0x2b2620, 1);
-    g.strokeRect(x, y, w, h);
     g.lineStyle(1, 0xc9bfa0, 1);
     g.strokeRect(x + 5, y + 5, w - 10, h - 10);
   }
 
-  // ---- 배경 연출 (원목 테이블 위에 깊은 숲 무늬 매트) ----
-
+  // ---- 배경 연출 (원목 테이블 위에 초록 카드 매트를 펼쳐놓은 느낌) ----
+  // 사용자가 제공한 원목 사진을 화면 전체 배경으로 깔고, 그 위에 초록 매트
+  // 이미지를 대전이 벌어지는 가운데 띠(매트 영역)에만 올린다 - 매트 가장자리
+  // 밖으로 원목이 살짝 비쳐서 "테이블 위에 매트를 깔았다"는 느낌을 낸다.
   drawWoodBackground() {
-    const g = this.add.graphics();
-    g.fillStyle(0x6b4226, 1);
-    g.fillRect(0, 0, 800, 600);
-    const grainColors = [0x5a371f, 0x7c4f2c];
-    for (let i = 0; i < 26; i++) {
-      const y = i * 24 + (i % 2 === 0 ? 4 : 14);
-      g.fillStyle(grainColors[i % 2], 0.1);
-      g.fillRect(0, y, 800, 3);
-    }
+    this.add.image(400, 300, 'tableWood').setDisplaySize(800, 600);
   }
 
-  drawForestMat() {
-    const matX = 0;
-    const matY = MAT_Y;
-    const matW = 800;
-    const matH = MAT_H;
-    const g = this.add.graphics();
-
-    g.fillStyle(0x173521, 1);
-    g.fillRect(matX, matY, matW, matH);
-
-    for (let r = 110; r > 0; r -= 14) {
-      g.fillStyle(0xe4e2b8, 0.035);
-      g.fillCircle(matX + matW - 110, matY + 70, r);
-    }
-
-    this.drawTreeRow(g, matY + matH * 0.3, 18, 34, 0x235232, 0.6, matX, matW);
-    this.drawTreeRow(g, matY + matH * 0.56, 26, 46, 0x163a24, 0.8, matX, matW);
-    this.drawTreeRow(g, matY + matH * 0.88, 36, 58, 0x0c2416, 0.95, matX, matW);
-
-    for (let i = 0; i < 3; i++) {
-      g.fillStyle(0xcdd8b6, 0.03 - i * 0.008);
-      g.fillRect(matX, matY + matH - 18 - i * 12, matW, 12);
-    }
-
-    g.lineStyle(3, 0x2b2620, 1);
-    g.strokeRect(matX, matY, matW, matH);
-  }
-
-  drawTreeRow(g, baseY, minH, maxH, color, alpha, matX, matW) {
-    const positions = [0.03, 0.1, 0.17, 0.24, 0.31, 0.38, 0.45, 0.52, 0.59, 0.66, 0.73, 0.8, 0.87, 0.94];
-    positions.forEach((t, i) => {
-      const x = matX + t * matW;
-      const h = minH + ((i * 37) % (maxH - minH + 1));
-      const w = h * 0.62;
-      g.fillStyle(color, alpha);
-      g.fillTriangle(x, baseY - h, x - w / 2, baseY, x + w / 2, baseY);
-      g.fillTriangle(x, baseY - h * 0.6, x - w / 2.6, baseY - h * 0.15, x + w / 2.6, baseY - h * 0.15);
-    });
+  drawTableMat() {
+    const margin = 8; // 매트를 살짝(약 2px씩) 더 크게
+    const cx = 400;
+    const cy = MAT_Y + MAT_H / 2;
+    this.add.image(cx, cy, 'tableMat').setDisplaySize(800 - margin * 2, MAT_H - margin * 2);
   }
 
   // 남은 덱을 매트 왼쪽 중단에 쌓인 카드 더미로 표시한다 (장식용, 클릭 불가).
+  // 남은 장수 표기는 더미 아래에 따로 자리를 차지하지 않고 맨 위 카드 위에
+  // 겹쳐서 보여준다.
   drawDeckPile() {
     const deckCount = this.engine ? this.engine.deck.length : 0;
     const stackX = 25;
     const stackY = MAT_Y + MAT_H / 2 - TILE_H / 2;
-    if (deckCount > 0) {
-      const layers = Math.min(4, Math.ceil(deckCount / 6));
-      for (let i = 0; i < layers; i++) {
-        const back = this.makeDeckCardBack(stackX - i * 3, stackY - i * 3, i % 2 === 0 ? Color.BLACK : Color.WHITE);
-        this.dynamicLayer.add(back);
-      }
+    const layers = deckCount > 0 ? Math.min(4, Math.ceil(deckCount / 6)) : 0;
+    for (let i = 0; i < layers; i++) {
+      const back = this.makeDeckCardBack(stackX - i * 3, stackY - i * 3, i % 2 === 0 ? Color.BLACK : Color.WHITE);
+      this.dynamicLayer.add(back);
     }
+    // 맨 위(가장 앞) 카드는 층이 쌓일수록 -i*3만큼 왼쪽 위로 밀려 있으므로,
+    // 텍스트도 그 실제 맨 위 카드의 중심(topX,topY)에 맞춰야 카드 중앙에
+    // 제대로 얹힌다 - 항상 stackX,stackY(맨 아래 층 기준)에 두면 층이 많을 때
+    // 카드 중심에서 아래-오른쪽으로 어긋나 보인다.
+    const topLayerOffset = Math.max(0, layers - 1) * 3;
+    const topX = stackX - topLayerOffset;
+    const topY = stackY - topLayerOffset;
     const countText = this.add
-      .text(stackX + TILE_W / 2, stackY + TILE_H + 12, `남은\n${deckCount}개`, { fontFamily: FONT, fontSize: '10px', color: '#e8e2c8', align: 'center' })
-      .setOrigin(0.5, 0);
+      .text(topX + TILE_W / 2, topY + TILE_H / 2, `${deckCount}`, {
+        fontFamily: FONT_BOLD, fontSize: '18px', color: '#e8c86a', stroke: '#1a1410', strokeThickness: 4,
+      })
+      .setOrigin(0.5);
     this.dynamicLayer.add(countText);
   }
 }

@@ -24,7 +24,91 @@ const DIALOGUE_SCRIPTS = {
     '저는 그냥 아침 기도를 드리러 가던 길이었을 뿐인데...',
     '부디, 부디 범인을 꼭 찾아주세요, 탐정님.',
   ],
+  wife: ['결국 저에게도 오셨군요...'],
+  fisher: ['이번엔 나요?'],
+  hunter: ['뭐 때문에 왔는지는 굳이 묻지 않겠소..'],
+  painter: ['사건이 일어난 후 저를 보는 눈이 조금 달라졌어요.'],
+  farmer: ['이미 저와 사이의 일도 들으셨겠죠.'],
+  // 맵 데이터의 실제 npc id가 "docter"(오타)라서 여기 키도 맞춰야 매칭된다 - 안 그러면
+  // DIALOGUE_SCRIPTS[npcData.id]가 항상 undefined라 기본 문구만 뜬다.
+  docter: ['부디, 부디 범인을 꼭 찾아주세요, 탐정님.'],
+  boy: [
+    { q: '사건 당일 저녁, 화가의 모습을 본 사람이 있습니까?', a: '저녁에 화가가 호숫가에 있던 건 봤어요.' },
+
+  { q: '그 사람이 밤늦게까지 호숫가에 있었다고 확신합니까?', a: '밤중에 다시 지나갔을 땐 그 자리에 없던데요.' },
+
+  { q: '화가는 마을 사람들과 평소 어떤 관계였습니까?', a: '농부가 유일하게 화가를 챙겨줬죠.' },
+
+  { q: '최근 마을 사람들 사이에 문제가 있었다는 이야기는 없었습니까?', a: '며칠 전 사냥꾼이 이장과 크게 다퉜어요.' },
+
+  { q: '저 동상은 꽤 오래된 것 같은데, 무슨 의미가 있습니까?', a: '저 동상은 마을을 처음 일군 사람을 기리는 거래요.' },
+
+  { q: '사건이 일어나기 전, 수상한 행동을 한 사람은 없었습니까?', a: '며칠 전부터 사냥꾼이 밤마다 숲 쪽을 살피고 있었어요.' },
+
+  { q: '농부와 화가가 특별히 가까웠던 이유를 알고 있습니까?', a: '예전에 농부가 어려울 때 화가가 도와준 적이 있다더군요.' },
+
+  { q: '이장과 사냥꾼은 왜 다툰 겁니까?', a: '숲에 들어가는 문제 때문이었다고 들었어요.' },
+
+  { q: '그 숲은 원래 마을 사람들이 자유롭게 들어갈 수 있는 곳 아닙니까?', a: '예전에는 그랬는데, 최근에는 이장이 들어가지 말라고 했어요.' },
+
+  { q: '마을 사람들은 그 이유를 알고 있습니까?', a: '정확한 이유는 아무도 몰라요. 이장만 알고 있다는 말이 있었죠.' },{ q: '사건 당일 밤, 숲에서 사냥꾼을 봤습니까?', a: '네. 북쪽 숲길로 들어가는 건 봤습니다.\n다만 몇 시였는지는 기억나지 않아요.' },
+    { q: '그 뒤에 다시 나온 것도 봤습니까?', a: '아니요. 제가 본 건 숲으로 들어가는 모습뿐입니다.' },
+  ],
+  girl: [
+    {q:"사건 당일 밤, 화가를 봤습니까?",a:"저녁까지 그림을 그리고 있는 건 봤습니다. 다만 밤에 다시 지나갔을 때는 잠시 자리를 비운 상태였어요."},
+    {q:"화가와 농부는 가까운 사이였습니까?",a:"네. 농부가 화가를 꽤 챙겼어요. 처음 마을에 왔을 때도 여러 가지로 도와줬다고 들었습니다."}
+  ],
+  farmer_baby: [
+    { q: '잠깐 물어봐도 될까요?', a: '네, 뭐든 물어보세요.' },
+    { q: '사건 당일 아버지가 언제까지 밭에 있었는지 기억합니까?', a: '저녁까지는 같이 있었어요.\n제가 먼저 집에 들어갔거든요.\n아빠는 일이 조금 남았다고 조금만 더 하고 가겠다고 했어요.' },
+  ],
+  captain: [
+    { q: '사건 당일 어부가 항구에 있었습니까?', a: '사건 시간 내내 한 발짝도 안 움직였다고까지는 못 하겠지만.' },
+    { q: '이장과는 사이가 좋았습니까?', a: '아니요. 사건 며칠 전에도 빚 문제로 서로 죽일 듯이 싸웠죠..' },
+  ],
+  // TODO: 임시 대사. 실제 내용 정해지면 교체.
+  // 잡화점 주인 (map_07_inter)
+  village_woman1: [
+    '어서 오세요... 아, 탐정님이셨군요.',
+    '요즘 다들 흉흉한 얘기뿐이라 장사도 손에 안 잡히네요.',
+    '필요한 거 있으면 말씀하세요. 아는 건 다 말씀드릴게요.',
+  ],
+  // 마을 주민 (map_01_village)
+  village_woman2: [
+    '좋은 아침이에요, 탐정님.',
+    '이장님 일 때문에 오신 거죠? 마을이 이렇게 조용해진 건 처음이에요.',
+    '얼른 범인을 찾아주셨으면 좋겠어요...',
+  ],
 };
+
+// npc id -> 화면에 보여줄 한글 이름. 맵 위 이름표(닉네임)와 대화창의 "[이름]" 표시에
+// 둘 다 쓴다. 여기 없는 id는 그냥 원래 id(영문)가 그대로 뜬다.
+const NPC_DISPLAY_NAME = {
+  saint: '수녀',
+  docter: '의사',
+  boy: '소년',
+  girl: '소녀',
+  farmer_baby: '농부의 딸',
+  farmer: '농부',
+  hunter: '사냥꾼',
+  painter: '화가',
+  fisher: '어부',
+  captain: '선장',
+  wife: '이장 부인',
+  village_woman1: '잡화점 주인',
+  village_woman2: '마을 주민',
+};
+
+// npc id -> 대화창 초상화용 일러스트 텍스처 키(preload에서 "dialogue-ill-*"로 로드해둔 것).
+// 여기 없는 npc(예: farmer_baby, village_woman1/2)는 기존처럼 걷기 스프라이트를 대신 쓴다.
+const DIALOGUE_ILLUST_BY_NPC = {
+  saint: 'dialogue-ill-saint',
+  docter: 'dialogue-ill-doctor',
+  boy: 'dialogue-ill-boy',
+  girl: 'dialogue-ill-girl',
+  captain: 'dialogue-ill-captain',
+};
+const DETECTIVE_ILLUST_KEY = 'dialogue-ill-탐정';
 
 // npc id -> 다빈치코드 미니게임 쪽 봇 이름(봇1~봇6). 이 표에 있는 npc만 "용의자"로
 // 취급돼서 대화 시 VN 화면+미니게임으로 이어진다(그 외 npc는 기존 하단 대화창만).
@@ -61,6 +145,10 @@ class MapScene extends Phaser.Scene {
   init(data) {
     this.currentMapKey = data.mapKey || 'map_01_village';
     this.fromMapKey = data.fromMapKey || null;
+    // 용의자 VN 화면/다빈치코드에 갔다가 돌아온 경우, 대화를 건 바로 그 자리에서
+    // 다시 시작하기 위한 좌표. SuspectVNScene/DaVinciCodeScene이 넘겨줄 때만 있다.
+    this.resumeX = data.returnX ?? null;
+    this.resumeY = data.returnY ?? null;
   }
 
   preload() {
@@ -112,16 +200,30 @@ class MapScene extends Phaser.Scene {
     // 캔버스)와 다른 파일만 별도로 표시해뒀다.
     const npcFrame = { frameWidth: 204, frameHeight: 384 }; // 표준: 1024x1536
     this.load.spritesheet('npc-saint', `asset/characters/용의자들-NPC/saint.png?v=${v}`, { frameWidth: 224, frameHeight: 350 }); // 1122x1402
-    this.load.spritesheet('npc-doctor', `asset/characters/용의자들-NPC/doctor.png?v=${v}`, npcFrame);
-    this.load.spritesheet('npc-boy', `asset/characters/용의자들-NPC/boy.png?v=${v}`, npcFrame);
+    this.load.spritesheet('npc-doctor', `asset/characters/용의자들-NPC/doctor.png?v=${v}`, { frameWidth: 250, frameHeight: 313 }); // 1254x1254
+    this.load.spritesheet('npc-boy', `asset/characters/용의자들-NPC/boy.png?v=${v}`, { frameWidth: 224, frameHeight: 350 }); // 1122x1402
     this.load.spritesheet('npc-farmer_baby', `asset/characters/용의자들-NPC/farmer_baby.png?v=${v}`, { frameWidth: 250, frameHeight: 313 }); // 1254x1254
-    this.load.spritesheet('npc-girl', `asset/characters/용의자들-NPC/girl.png?v=${v}`, { frameWidth: 250, frameHeight: 313 }); // 1254x1254
-    this.load.spritesheet('npc-farmer', `asset/characters/용의자들-farmer/farmer.png?v=${v}`, npcFrame);
+    this.load.spritesheet('npc-girl', `asset/characters/용의자들-NPC/girl.png?v=${v}`, npcFrame); // 1024x1536
+    // village_woman1(inter)/village_woman2(village) 둘 다 같은 그림을 id만 다르게 재사용한다.
+    this.load.spritesheet('npc-villager_woman', `asset/characters/용의자들-NPC/villager_woman.png?v=${v}`, { frameWidth: 250, frameHeight: 313 }); // 1254x1254
+    // farmer.png만 다른 그림들과 달리 4열x4행 그리드라(1024/4=256, 1536/4=384),
+    // 5열 기준 표준 프레임으로 자르면 오른쪽에 있는 팔이 다음 칸으로 잘려 들어간다.
+    this.load.spritesheet('npc-farmer', `asset/characters/용의자들-farmer/farmer.png?v=${v}`, { frameWidth: 256, frameHeight: 384 }); // 1024x1536, 4열
     this.load.spritesheet('npc-hunter', `asset/characters/용의자들-hunter/hunter.png?v=${v}`, npcFrame);
     this.load.spritesheet('npc-painter', `asset/characters/용의자들-painter/painter.png?v=${v}`, npcFrame);
     this.load.spritesheet('npc-fisher', `asset/characters/용의자들-fisher/fisher.png?v=${v}`, npcFrame);
     this.load.spritesheet('npc-captain', `asset/characters/용의자들-NPC/captain.png?v=${v}`, npcFrame);
     this.load.spritesheet('npc-wife', `asset/characters/용의자들-wife/wife.png?v=${v}`, npcFrame);
+
+    // 일반 NPC 대화창 초상화용 일러스트(걷기 스프라이트와 별도). "탐정" 질문 줄에도
+    // 전용 일러스트가 있어서 그걸 쓰고, 일러스트가 없는 id는 기존처럼 걷기 스프라이트로
+    // 대체된다(showDialogueLine 참고).
+    this.load.image('dialogue-ill-탐정', `asset/characters/대화창 일러스트/dective_ill.png?v=${v}`);
+    this.load.image('dialogue-ill-saint', `asset/characters/대화창 일러스트/saint_ill.png?v=${v}`);
+    this.load.image('dialogue-ill-doctor', `asset/characters/대화창 일러스트/doctor_ill.png?v=${v}`);
+    this.load.image('dialogue-ill-boy', `asset/characters/대화창 일러스트/boy_ill.png?v=${v}`);
+    this.load.image('dialogue-ill-girl', `asset/characters/대화창 일러스트/girl_ill.png?v=${v}`);
+    this.load.image('dialogue-ill-captain', `asset/characters/대화창 일러스트/captine_ill.png?v=${v}`);
 
     // 오프닝 컷씬 전용: 발견 장면에서 잠깐 블러 처리해서 띄우는 잘린 머리 그림.
     this.load.image('cutscene-head', `asset/decorations/head.png?v=${v}`);
@@ -162,7 +264,8 @@ class MapScene extends Phaser.Scene {
   // NPC 그림도 main.png와 같은 5열x4행 걷기 스프라이트시트라, 같은 방식으로 걷기
   // 애니메이션을 만들어둔다(컷씬에서 성녀가 자연스럽게 걷는 것처럼 보이도록).
   // 키 이름은 "<텍스처키>-walk-<방향>"으로 플레이어 것과 겹치지 않게 구분한다.
-  ensureNpcAnims(texKey) {
+  // cols: 한 행에 프레임이 몇 개인지(대부분 5열이지만 farmer.png만 4열이라 다르게 준다).
+  ensureNpcAnims(texKey, cols = 5) {
     if (this.anims.exists(`${texKey}-walk-down`)) return;
     const dirs = [
       { dir: 'down', row: 0 }, { dir: 'left', row: 1 }, { dir: 'right', row: 2 }, { dir: 'up', row: 3 },
@@ -170,7 +273,7 @@ class MapScene extends Phaser.Scene {
     dirs.forEach(({ dir, row }) => {
       this.anims.create({
         key: `${texKey}-walk-${dir}`,
-        frames: this.anims.generateFrameNumbers(texKey, { start: row * 5, end: row * 5 + 4 }),
+        frames: this.anims.generateFrameNumbers(texKey, { start: row * cols, end: row * cols + (cols - 1) }),
         frameRate: 10,
         repeat: -1,
       });
@@ -307,8 +410,12 @@ class MapScene extends Phaser.Scene {
         ? new Phaser.Geom.Polygon(obj.polygon.map(p => ({ x: obj.x + p.x, y: obj.y + p.y })))
         : new Phaser.Geom.Rectangle(obj.x, obj.y, obj.width || 1, obj.height || 1));
 
-    let startPoint = null;
-    if (this.fromMapKey) {
+    // 용의자와 대화하다가 VN/다빈치코드로 넘어간 뒤 돌아온 거면, 다른 스폰 로직보다
+    // 우선해서 대화를 걸었던 그 자리에 그대로 세운다.
+    let startPoint = (this.resumeX != null && this.resumeY != null)
+      ? { x: this.resumeX, y: this.resumeY }
+      : null;
+    if (!startPoint && this.fromMapKey) {
       startPoint = map.findObject('Portals', obj => obj.name === `start_point_${this.fromMapKey}`);
     }
     if (!startPoint && this.fromMapKey) {
@@ -417,32 +524,59 @@ class MapScene extends Phaser.Scene {
     // Enter로 오프닝 컷씬 스킵
     this.enterKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
 
+    // 카메라를 0.35배 축소해서 쓰는데(위 setZoom), setScrollFactor(0)로 "화면에 고정"한
+    // 오브젝트도 스크롤만 무시할 뿐 줌 배율은 그대로 적용된다 - 그래서 화면 좌표를 그대로
+    // 써서 만들면 크기/위치가 줌 배율만큼 줄어들어 화면 중앙 쪽으로 쏠려 보인다(대화창이
+    // 작고 어중간한 위치에 뜨던 문제가 이거였음). 아래 헬퍼로 "원하는 화면 좌표/길이"를
+    // 줌을 상쇄한 월드 좌표/길이로 변환해서 UI를 배치한다.
+    const zoom = this.cameras.main.zoom;
+    const camCenterX = this.cameras.main.width / 2;
+    const camCenterY = this.cameras.main.height / 2;
+    const uiX = (sx) => (sx - camCenterX) / zoom + camCenterX;
+    const uiY = (sy) => (sy - camCenterY) / zoom + camCenterY;
+    const uiLen = (n) => n / zoom;
+    const uiFont = (px) => `${Math.round(px / zoom)}px`;
+    this.uiX = uiX;
+    this.uiY = uiY;
+    this.uiLen = uiLen;
+    this.uiFont = uiFont;
+
     // 예전엔 (640,670)에 있었는데, 화면이 960x540이라 670은 화면 밖이라 안 보이고 있었다.
-    this.interactText = this.add.text(this.cameras.main.width / 2, this.cameras.main.height - 40, '', {
-      fontSize: '14px', fill: '#ffff00', backgroundColor: '#000000aa', padding: { x: 10, y: 5 }
+    this.interactText = this.add.text(uiX(this.cameras.main.width / 2), uiY(this.cameras.main.height - 40), '', {
+      fontSize: uiFont(14), fill: '#ffff00', backgroundColor: '#000000aa', padding: { x: 10, y: 5 }
     }).setOrigin(0.5).setScrollFactor(0).setVisible(false);
 
-    // NPC 대화창. 컷씬 자막이랑 같은 가죽/청동 톤으로 만들어서 게임 전체 톤을 맞춘다.
-    // 화면 하단에 고정, 평소엔 숨김.
+    // NPC 대화창. RPG Maker풍 - 화면 하단에 딱 붙는 단색 검은 박스, 왼쪽에 정사각형
+    // 흉상 초상화, "[이름]" 형태 이름표, 흰 텍스트, 하단 중앙에 다음 표시용 ▼.
+    // 여기부터는 전부 "화면 기준" 좌표/길이를 정한 뒤 uiX/uiY/uiLen으로 변환해서 쓴다.
     const dialogCam = this.cameras.main;
-    const dialogBoxW = dialogCam.width - 80;
-    const dialogBoxH = 190;
-    const dialogBoxX = 40;
-    const dialogBoxY = dialogCam.height - dialogBoxH - 20;
+    const dialogBoxW = dialogCam.width;
+    const dialogBoxH = 170;
+    const dialogBoxX = 0;
+    const dialogBoxY = dialogCam.height - dialogBoxH;
+    // 초상화는 박스 왼쪽 끝에 딱 붙여서 박스 높이만큼 꽉 채운다(테두리/여백 없음).
+    const portraitSize = dialogBoxH;
+    const portraitX = dialogBoxX;
+    const portraitY = dialogBoxY;
+    const textStartX = portraitX + portraitSize + 24;
     this.dialogueBox = this.add.graphics().setScrollFactor(0).setDepth(3000).setVisible(false);
-    this.dialogueBox.fillStyle(0x2a1f14, 0.95);
-    this.dialogueBox.fillRoundedRect(dialogBoxX, dialogBoxY, dialogBoxW, dialogBoxH, 12);
-    this.dialogueBox.lineStyle(4, 0xb8860b, 1);
-    this.dialogueBox.strokeRoundedRect(dialogBoxX, dialogBoxY, dialogBoxW, dialogBoxH, 12);
-    this.dialogueNameText = this.add.text(dialogBoxX + 20, dialogBoxY + 14, '', {
-      fontSize: '16px', fill: '#e8b34d', fontStyle: 'bold',
+    this.dialogueBox.fillStyle(0x000000, 0.92);
+    this.dialogueBox.fillRect(uiX(dialogBoxX), uiY(dialogBoxY), uiLen(dialogBoxW), uiLen(dialogBoxH));
+    this.dialoguePortraitBox = { x: uiX(portraitX), y: uiY(portraitY), size: uiLen(portraitSize) };
+    this.dialoguePortraitBg = this.add.graphics().setScrollFactor(0).setDepth(3001).setVisible(false);
+    this.dialoguePortraitBg.fillStyle(0x000000, 0.92);
+    this.dialoguePortraitBg.fillRect(uiX(portraitX), uiY(portraitY), uiLen(portraitSize), uiLen(portraitSize));
+    this.dialoguePortrait = this.add.image(uiX(portraitX + portraitSize / 2), uiY(portraitY + portraitSize / 2), 'player', 0)
+      .setScrollFactor(0).setDepth(3002).setVisible(false);
+    this.dialogueNameText = this.add.text(uiX(textStartX), uiY(dialogBoxY + 16), '', {
+      fontSize: uiFont(17), fill: '#ffffff', fontStyle: 'bold',
     }).setScrollFactor(0).setDepth(3001).setVisible(false);
-    this.dialogueText = this.add.text(dialogBoxX + 20, dialogBoxY + 42, '', {
-      fontSize: '15px', fill: '#f2e6cf', wordWrap: { width: dialogBoxW - 40 },
+    this.dialogueText = this.add.text(uiX(textStartX), uiY(dialogBoxY + 48), '', {
+      fontSize: uiFont(16), fill: '#ffffff', wordWrap: { width: uiLen(dialogBoxX + dialogBoxW - 20 - textStartX) }, lineSpacing: uiLen(8),
     }).setScrollFactor(0).setDepth(3001).setVisible(false);
-    this.dialogueHint = this.add.text(dialogBoxX + dialogBoxW - 20, dialogBoxY + dialogBoxH - 22, '', {
-      fontSize: '12px', fill: '#cbb994',
-    }).setOrigin(1, 0).setScrollFactor(0).setDepth(3001).setVisible(false);
+    this.dialogueHint = this.add.text(uiX(dialogBoxX + dialogBoxW / 2), uiY(dialogBoxY + dialogBoxH - 14), '▼', {
+      fontSize: uiFont(16), fill: '#ffffff',
+    }).setOrigin(0.5, 1).setScrollFactor(0).setDepth(3001).setVisible(false);
 
     this.isTalking = false;
     this.isCutscene = false;
@@ -548,6 +682,7 @@ class MapScene extends Phaser.Scene {
       farmer_baby: 'npc-farmer_baby', girl: 'npc-girl',
       farmer: 'npc-farmer', hunter: 'npc-hunter', painter: 'npc-painter', fisher: 'npc-fisher',
       captain: 'npc-captain', wife: 'npc-wife',
+      village_woman1: 'npc-villager_woman', village_woman2: 'npc-villager_woman',
     };
     const isInteriorMap = this.currentMapKey === 'map_08_body' || this.currentMapKey === 'map_07_inter';
     const npcScale = isInteriorMap ? 0.58 : 0.48;
@@ -556,13 +691,13 @@ class MapScene extends Phaser.Scene {
     const npcObjects = map.getObjectLayer('npc')?.objects || [];
     npcObjects.forEach((obj, i) => {
       if (!obj.name) return;
-      const data = { id: obj.name, name: obj.name };
+      const data = { id: obj.name, name: NPC_DISPLAY_NAME[obj.name] || obj.name };
       const texKey = npcTextureKeys[obj.name];
 
       let npc;
       if (texKey && this.textures.exists(texKey)) {
         npc = this.add.sprite(obj.x, obj.y, texKey, 0).setScale(npcScale);
-        this.ensureNpcAnims(texKey);
+        this.ensureNpcAnims(texKey, texKey === 'npc-farmer' ? 4 : 5);
       } else {
         npc = this.add.rectangle(obj.x, obj.y, 28, 28, palette[i % palette.length]);
       }
@@ -713,7 +848,10 @@ class MapScene extends Phaser.Scene {
         // 용의자(다빈치코드 대전 상대로 매핑된 NPC)는 미연시풍 배경+일러스트 화면으로,
         // 그 외 일반 NPC는 지금까지의 하단 대화창으로 처리한다.
         if (NPC_TO_BOT_NAME[npcData.id]) {
-          this.scene.start('SuspectVNScene', { npcId: npcData.id, npcName: npcData.name, returnMapKey: this.currentMapKey });
+          this.scene.start('SuspectVNScene', {
+            npcId: npcData.id, npcName: npcData.name, returnMapKey: this.currentMapKey,
+            returnX: this.player.x, returnY: this.player.y,
+          });
         } else {
           this.startDialogue(npcData);
         }
@@ -724,24 +862,60 @@ class MapScene extends Phaser.Scene {
   }
 
   // --- NPC 대화 ---
-  // DIALOGUE_SCRIPTS[npcData.id]에 대사가 있으면 한 줄씩, 없으면 기본 문구 하나만 보여준다.
-  // [SPACE]로 다음 줄로 넘기고, 마지막 줄에서 한 번 더 누르면 대화가 끝난다.
+  // DIALOGUE_SCRIPTS[npcData.id]의 각 항목은 두 형태를 쓸 수 있다:
+  //   - 그냥 문자열: NPC 혼자 하는 대사 한 줄 (예전 방식 그대로, 예: saint).
+  //   - { q, a } 객체: 탐정이 묻고("탐정" 이름표로) NPC가 답하는("NPC 이름표로) 두 줄로
+  //     펼쳐진다 - 물어보고 답하는 문답 느낌을 낼 때 이 형태를 쓰면 된다.
+  // 대사가 없으면 기본 문구 하나만 보여준다. [SPACE]로 다음 줄로 넘기고, 마지막 줄에서
+  // 한 번 더 누르면 대화가 끝난다.
   startDialogue(npcData) {
     this.isTalking = true;
     this.interactText.setText('').setVisible(false);
     this.currentNpcData = npcData;
     this.currentNpcName = npcData.name;
-    this.dialogueLines = DIALOGUE_SCRIPTS[npcData.id] || [`(${npcData.name})... 별다른 말이 없다.`];
+    // 초상화용 텍스처 키. NPC는 맵에 스폰할 때 쓴 스프라이트를 그대로 재사용하고,
+    // 탐정(플레이어) 질문 줄에는 플레이어 스프라이트를 쓴다.
+    this.npcPortraitTexKey = this.npcById.get(npcData.id)?.texKey || null;
+
+    const rawScript = DIALOGUE_SCRIPTS[npcData.id] || [`(${npcData.name})... 별다른 말이 없다.`];
+    this.dialogueLines = [];
+    rawScript.forEach(entry => {
+      if (typeof entry === 'string') {
+        this.dialogueLines.push({ speaker: npcData.name, text: entry, isDetective: false });
+      } else {
+        this.dialogueLines.push({ speaker: '탐정', text: entry.q, isDetective: true });
+        this.dialogueLines.push({ speaker: npcData.name, text: entry.a, isDetective: false });
+      }
+    });
+
     this.dialogueIndex = 0;
     this.showDialogueLine();
   }
 
   showDialogueLine() {
-    const isLast = this.dialogueIndex >= this.dialogueLines.length - 1;
+    const line = this.dialogueLines[this.dialogueIndex];
     this.dialogueBox.setVisible(true);
-    this.dialogueNameText.setText(this.currentNpcName).setVisible(true);
-    this.dialogueText.setText(this.dialogueLines[this.dialogueIndex]).setVisible(true);
-    this.dialogueHint.setText(isLast ? '[SPACE] 닫기' : '[SPACE] 다음').setVisible(true);
+    this.dialoguePortraitBg.setVisible(true);
+    this.dialogueNameText.setText(`[${line.speaker}]`).setVisible(true);
+    this.dialogueText.setText(line.text).setVisible(true);
+    this.dialogueHint.setVisible(true);
+
+    // 초상화 우선순위: 1) 대화창 전용 일러스트(DIALOGUE_ILLUST_BY_NPC) 2) 없으면 맵에
+    // 스폰할 때 쓴 걷기 스프라이트(탐정 질문 줄은 플레이어 스프라이트) 3) 그것도 없으면 빈 칸.
+    const illustKey = line.isDetective ? DETECTIVE_ILLUST_KEY : DIALOGUE_ILLUST_BY_NPC[this.currentNpcData?.id];
+    const spriteTexKey = line.isDetective ? 'player' : this.npcPortraitTexKey;
+    const { size } = this.dialoguePortraitBox;
+    if (illustKey && this.textures.exists(illustKey)) {
+      this.dialoguePortrait.setTexture(illustKey).setVisible(true);
+      const src = this.dialoguePortrait;
+      this.dialoguePortrait.setScale(size / Math.max(src.width, src.height));
+    } else if (spriteTexKey && this.textures.exists(spriteTexKey)) {
+      this.dialoguePortrait.setTexture(spriteTexKey, 0).setVisible(true);
+      const src = this.dialoguePortrait;
+      this.dialoguePortrait.setScale(size / Math.max(src.width, src.height));
+    } else {
+      this.dialoguePortrait.setVisible(false);
+    }
   }
 
   advanceDialogue() {
@@ -753,23 +927,17 @@ class MapScene extends Phaser.Scene {
     }
   }
 
+  // 일반 NPC는 대화가 끝나면 그냥 대화창만 닫는다. 용의자(NPC_TO_BOT_NAME에 있는 NPC)는
+  // 애초에 여기로 안 오고 SuspectVNScene으로 바로 가서 거기서 "수사하기" 버튼을 눌러야만
+  // 다빈치코드로 넘어간다 - 예전엔 여기서도 무조건 미니게임을 켜버리는 버그가 있었다.
   endDialogue() {
     this.isTalking = false;
     this.dialogueBox.setVisible(false);
+    this.dialoguePortraitBg.setVisible(false);
+    this.dialoguePortrait.setVisible(false);
     this.dialogueNameText.setVisible(false);
     this.dialogueText.setVisible(false);
     this.dialogueHint.setVisible(false);
-    this.launchNextGame(this.currentNpcData);
-  }
-
-  // 대화가 끝나면 다빈치코드 미니게임으로 전환한다. 미니게임 씬은 800x600 레이아웃을
-  // 그대로 가정하고 있어서(마을은 960x540) 여기서 캔버스 크기를 미리 바꿔준다 —
-  // 미니게임이 끝나고 "맵으로 돌아가기"를 누르면 DaVinciCodeScene 쪽에서 다시
-  // 960x540으로 되돌리고 returnMapKey로 넘어온다.
-  launchNextGame(npcData) {
-    const botName = NPC_TO_BOT_NAME[npcData.id] || '봇1';
-    this.scale.resize(800, 600);
-    this.scene.start('DaVinciCodeScene', { botName, returnMapKey: this.currentMapKey });
   }
 
   // --- 오프닝 컷씬 ---
@@ -803,6 +971,7 @@ class MapScene extends Phaser.Scene {
       fontSize: '38px', fill: '#f2e6cf', align: 'center', letterSpacing: 3,
       padding: { x: 24, y: 34 },
       wordWrap: { width: cam.width - 160 },
+      lineSpacing: 18,
     }).setOrigin(0.5).setScrollFactor(0).setDepth(2000).setAlpha(0);
     // 스킵 처리(skipIntroCutscene)에서 지워야 하니 인스턴스에도 걸어둔다.
     this.introCaption = caption;

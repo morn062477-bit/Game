@@ -123,9 +123,25 @@ class Player {
 class Strategy {
   // index: 이 전략이 조종하는 플레이어가 MatchEngine.players 배열에서 몇 번(0/1)인지.
   // 아이템 스킬이 engine.peekOpponentSlot() 같은 걸 호출할 때 자기 자신을 식별하는 데 쓴다.
-  bind(player, index) { this.player = player; this.index = index; }
+  bind(player, index) {
+    this.player = player;
+    this.index = index;
+    // '속독' 스킬용: 이번 내 턴에 정답을 맞혀서 '계속 도전' 중인 상태인지 추적한다.
+    // 내 턴이 새로 시작(draw)하면 false로 리셋하고, 내가 정답을 맞히면 true가 된다.
+    this._hasCorrectGuessThisTurn = false;
+  }
+
   attachEngine(engine) { this.engine = engine; }
-  onEvent(_event) {}
+
+  onEvent(event) {
+    if (!this.player) return;
+    if (event.kind === 'draw' && event.data.player === this.player.name) {
+      this._hasCorrectGuessThisTurn = false;
+    } else if (event.kind === 'guess' && event.data.guesser === this.player.name && event.data.correct) {
+      this._hasCorrectGuessThisTurn = true;
+    }
+  }
+
   async chooseGuess(_obs) { throw new Error('chooseGuess not implemented'); }
   async continueAfterCorrect(_obs) { throw new Error('continueAfterCorrect not implemented'); }
   chooseTieBreakSide() { return TieBreak.BLACK_LEFT; }
@@ -138,10 +154,10 @@ class Strategy {
   // 오답을 내서 페널티(자기 블록 공개)를 받기 직전에 호출된다.
   // 반환값으로 페널티를 바꿀 수 있다:
   //   skipReveal: true          -> 이번엔 공개 자체를 건너뛴다 ('보험')
-  //   redirectIndex: number     -> drawnIndex 대신 이 위치를 공개한다 ('미끼')
-  //   retryWithoutPenalty: true -> 공개도 턴 종료도 없이 바로 다시 지목한다 ('동시타격')
+  //   retryWithoutPenalty: true -> 공개도 턴 종료도 없이 바로 다시 지목한다 ('동시타격', '속독')
+  //   skillLabel: string        -> 위 둘 중 하나로 스킬이 발동했을 때 표시할 이름
   async onWrongGuess(_obs, _drawnIndex) {
-    return { skipReveal: false, redirectIndex: null, retryWithoutPenalty: false };
+    return { skipReveal: false, retryWithoutPenalty: false };
   }
 
   // 자신의 블록이 (이유 불문하고) 방금 공개됐을 때 호출된다.
@@ -183,6 +199,7 @@ class DeductiveStrategy extends Strategy {
   }
 
   onEvent(event) {
+    super.onEvent(event); // '속독' 스킬용 '이번 턴 정답 여부' 추적
     if (event.kind === 'guess' && event.data.correct === false) {
       const { slotId, guess } = event.data;
       if (slotId != null && guess != null) {
@@ -280,7 +297,7 @@ class DeductiveStrategy extends Strategy {
 
 const ITEM_SKILLS = {
   lantern: { item: '랜턴', skill: '엿보기', description: '대전 시작 시, 상대 패의 미공개 블록 하나 숫자를 몰래 확인한다.' },
-  letter: { item: '편지', skill: '미끼', description: '오답으로 블록을 공개해야 할 때, 실제로 뽑았던 블록 대신 다른 미공개 블록을 대신 공개한다.' },
+  speedRead: { item: '책', skill: '속독', description: '정답을 맞히고 계속 도전하다 오답을 내도, 이번 한 번은 턴이 넘어가지 않고 페널티 없이 곧바로 다시 지목할 수 있다.' },
   sickle: { item: '낫', skill: '동시타격', description: '오답이어도 이번 한 번은 페널티 없이 곧바로 다시 지목할 수 있다.' },
   rope: { item: '밧줄', skill: '되감기', description: '자신의 블록이 어떤 이유로든 방금 공개됐을 때, 그 자리에서 즉시 다시 비공개로 되돌린다.' },
   bloodyTowel: { item: '피묻은 수건', skill: '보험', description: '오답을 내도 이번 한 번은 블록이 공개되지 않는다.' },
@@ -289,7 +306,7 @@ const ITEM_SKILLS = {
 // 6명 중 5명에게만 아이템을 배정한다 (아이템이 5개뿐이므로 1명은 순수 추리로만 승부).
 const BOT_ITEM_ASSIGNMENT = {
   봇1: 'lantern',
-  봇2: 'letter',
+  봇2: 'speedRead',
   봇3: 'sickle',
   봇4: 'rope',
   봇5: 'bloodyTowel',
@@ -336,23 +353,19 @@ class SkilledDeductiveStrategy extends DeductiveStrategy {
 
     if (this.skillKey === 'bloodyTowel') {
       this.skillUsed = true;
-      return { skipReveal: true, redirectIndex: null, retryWithoutPenalty: false };
+      return { skipReveal: true, retryWithoutPenalty: false, skillLabel: ITEM_SKILLS.bloodyTowel.skill };
     }
 
-    if (this.skillKey === 'letter') {
-      const hiddenOwn = obs.selfHand.slots
-        .map((s, i) => (!s.revealed && i !== drawnIndex ? i : null))
-        .filter((i) => i !== null);
-      if (hiddenOwn.length > 0) {
-        this.skillUsed = true;
-        const redirect = hiddenOwn[Math.floor(Math.random() * hiddenOwn.length)];
-        return { skipReveal: false, redirectIndex: redirect, retryWithoutPenalty: false };
-      }
+    // '속독': 정답을 맞히고 '계속 도전'하다 오답을 낸 경우에만 발동한다(턴의
+    // 첫 지목이 바로 틀린 거라면 조건에 안 맞으므로 기본 처리로 넘어간다).
+    if (this.skillKey === 'speedRead' && this._hasCorrectGuessThisTurn) {
+      this.skillUsed = true;
+      return { skipReveal: false, retryWithoutPenalty: true, skillLabel: ITEM_SKILLS.speedRead.skill };
     }
 
     if (this.skillKey === 'sickle') {
       this.skillUsed = true;
-      return { skipReveal: false, redirectIndex: null, retryWithoutPenalty: true };
+      return { skipReveal: false, retryWithoutPenalty: true, skillLabel: ITEM_SKILLS.sickle.skill };
     }
 
     return super.onWrongGuess(obs, drawnIndex);
@@ -431,7 +444,12 @@ class SkilledHumanInputStrategy extends HumanInputStrategy {
   onWrongGuess(obs, drawnIndex) {
     // 쓸 수 있는 능력이 없어도, 오답 페널티로 공개할 카드는 항상 직접 고르게 한다
     // (Scene이 usable.length로 능력 선택 팝업을 띄울지 곧바로 카드 선택으로 갈지 결정).
-    const usable = ['bloodyTowel', 'letter', 'sickle'].filter((k) => this.hasSkill(k));
+    // '속독'은 이번 턴에 이미 정답을 맞히고 '계속 도전' 중일 때만 선택지로 보여준다.
+    const usable = ['bloodyTowel', 'speedRead', 'sickle'].filter((k) => {
+      if (!this.hasSkill(k)) return false;
+      if (k === 'speedRead' && !this._hasCorrectGuessThisTurn) return false;
+      return true;
+    });
     return new Promise((resolve) => {
       this._resolveWrongGuessDecision = resolve;
       if (this.onNeedWrongGuessDecision) this.onNeedWrongGuessDecision(obs, usable, drawnIndex);
@@ -444,7 +462,7 @@ class SkilledHumanInputStrategy extends HumanInputStrategy {
       const r = this._resolveWrongGuessDecision;
       this._resolveWrongGuessDecision = null;
       r(decision || {
-        skipReveal: false, redirectIndex: null, revealIndex: null, retryWithoutPenalty: false,
+        skipReveal: false, revealIndex: null, retryWithoutPenalty: false,
       });
     }
   }
@@ -489,8 +507,13 @@ class MatchEngine {
     this.winner = null;
     this.onEventCallback = onEvent;
     this._dealInitialHands();
+  }
 
-    // 대전 시작 시 1회 발동하는 스킬('엿보기' 등)을 위한 훅.
+  // 대전 시작 시 1회 발동하는 스킬('엿보기' 등)을 위한 훅. 생성자에서 곧바로
+  // 부르지 않는다 - Scene의 초기 4장 배분 연출이 아직 시작도 안 했는데
+  // 스킬(예: '엿보기') 배너가 먼저 튀어나오는 원인이었다. 그 연출이 다 끝난
+  // 뒤 Scene이 명시적으로 호출해줘야 한다.
+  triggerMatchStart() {
     this.strategies.forEach((s, i) => {
       s.onMatchStart(this._makeObservation(this.players[i], this.players[1 - i]));
     });
@@ -518,13 +541,22 @@ class MatchEngine {
     this.log.push({ kind: 'setup', data: {} });
   }
 
-  _emit(kind, data) {
+  // Scene의 애니메이션이 이 이벤트를 다 그릴 때까지 기다렸다가 리턴한다(onEventCallback이
+  // Promise를 반환하면 그걸 await한다). 이렇게 엔진을 Scene 연출 속도에 묶어두지 않으면,
+  // 엔진은 사람 입력을 기다리는 지점 외에는 즉시 다음 턴까지 데이터를 다 진행시켜 버려서
+  // (예: 사람 턴에서 막혀도 그 전까지 봇 턴 여러 개가 이미 끝나 있을 수 있음),
+  // 아직 애니메이션이 안 끝난 카드의 revealed 여부 같은 "미래 상태"가 화면에 그대로
+  // 새어나가거나(예: 상대가 방금 뽑은 카드 숫자가 미리 보임), 애니메이션 큐에 쌓인
+  // 지난 턴들이 다 재생될 때까지 화면이 "상대 턴"에 멈춰있는 것처럼 보이는 원인이 된다.
+  async _emit(kind, data) {
     const event = { kind, data };
     this.log.push(event);
     const pub = this._sanitize(event);
     if (pub) {
-      if (this.onEventCallback) this.onEventCallback(pub);
+      let pending = null;
+      if (this.onEventCallback) pending = this.onEventCallback(pub);
       this.strategies.forEach((s) => s.onEvent(pub));
+      if (pending && typeof pending.then === 'function') await pending;
     }
   }
 
@@ -578,14 +610,14 @@ class MatchEngine {
     if (this.deck.length > 0) {
       const block = this.deck.pop();
       drawnIndex = active.insertDrawnBlock(block);
-      this._emit('draw', { player: active.name, block: blockLabel(block) });
+      await this._emit('draw', { player: active.name, block: blockLabel(block) });
     } else {
-      this._emit('deck_empty', { player: active.name });
+      await this._emit('deck_empty', { player: active.name });
     }
 
     while (true) {
       if (opponent.hand.hiddenIndices().length === 0) {
-        this._finish(active, opponent, 'no_hidden_blocks');
+        await this._finish(active, opponent, 'no_hidden_blocks');
         return;
       }
 
@@ -595,14 +627,20 @@ class MatchEngine {
       const slotId = opponent.hand.slots[pos].slotId;
       const correct = actual.number === guessNumber;
 
-      this._emit('guess', {
+      // 'guess' 이벤트를 쏘기 전에 미리 공개해둔다 - Scene의 뒤집기 연출은 이
+      // 이벤트 하나로 뒤집기+들어올리기까지 다 끝내고 render()를 다시 부르는데,
+      // reveal()을 그 뒤로 미루면 render() 시점에 아직 revealed가 false라서
+      // 들어올려졌던 카드가 다시 원래 자리로 내려가 버린다(reveal_opponent는
+      // Scene에서 별도 처리 없이 무시되므로, 그 이벤트를 기다렸다간 늦는다).
+      if (correct) opponent.hand.reveal(pos);
+
+      await this._emit('guess', {
         guesser: active.name, target: opponent.name, position: pos,
         slotId, guess: guessNumber, actual: actual.number, correct,
       });
 
       if (correct) {
-        opponent.hand.reveal(pos);
-        this._emit('reveal_opponent', { player: opponent.name, position: pos, block: blockLabel(actual) });
+        await this._emit('reveal_opponent', { player: opponent.name, position: pos, block: blockLabel(actual) });
 
         // '되감기'(밧줄): 자기 블록이 상대에게 맞아서 공개됐어도 즉시 다시 숨길 수 있다.
         const rehide1 = await opponentStrat.onOwnBlockRevealed(
@@ -611,11 +649,11 @@ class MatchEngine {
         );
         if (rehide1) {
           opponent.hand.slots[pos].revealed = false;
-          this._emit('skill_used', { player: opponent.name, skill: '되감기' });
+          await this._emit('skill_used', { player: opponent.name, skill: '되감기' });
         }
 
         if (opponent.hand.allRevealed()) {
-          this._finish(active, opponent, 'all_blocks_revealed');
+          await this._finish(active, opponent, 'all_blocks_revealed');
           return;
         }
 
@@ -626,45 +664,39 @@ class MatchEngine {
       } else {
         const decision = drawnIndex !== null
           ? await strat.onWrongGuess(this._makeObservation(active, opponent), drawnIndex)
-          : { skipReveal: false, redirectIndex: null, retryWithoutPenalty: false };
+          : { skipReveal: false, retryWithoutPenalty: false };
 
-        // '동시타격'(낫): 페널티 없이 곧바로 다시 지목한다. 스킬은 여기서 이미 소모됨.
+        // 페널티 없이 곧바로 다시 지목한다('동시타격'/'속독'). 스킬은 여기서 이미
+        // 소모됨 - 배너에는 실제로 발동한 스킬 이름(decision.skillLabel)을 쓴다.
         if (decision.retryWithoutPenalty) {
-          this._emit('skill_used', { player: active.name, skill: '동시타격' });
+          await this._emit('skill_used', { player: active.name, skill: decision.skillLabel || '' });
           continue;
         }
 
         if (decision.skipReveal) {
-          // '보험'(피묻은 수건): 공개 자체를 건너뛴다.
-          this._emit('skill_used', { player: active.name, skill: '보험' });
+          // 스킬로 공개 자체를 건너뛴다('보험').
+          await this._emit('skill_used', { player: active.name, skill: decision.skillLabel || '' });
         } else {
-          // '미끼'(편지)가 지정한 위치가 있으면 그쪽을 공개하고 스킬 사용을 알린다.
-          // revealIndex는 스킬 없이 "공개할 카드를 직접 고르는" 경우로, 스킬 소모 없이
-          // 그 위치를 그대로 공개 대상으로 쓴다. 둘 다 없으면 원래 뽑았던 블록을 공개한다.
-          let targetIndex = drawnIndex;
-          if (decision.redirectIndex != null) {
-            targetIndex = decision.redirectIndex;
-            this._emit('skill_used', { player: active.name, skill: '미끼' });
-          } else if (decision.revealIndex != null) {
-            targetIndex = decision.revealIndex;
-          }
+          // revealIndex가 있으면(스킬 없이 직접 고른 경우) 그 위치를, 없으면
+          // 원래 뽑았던 블록을 공개한다.
+          const targetIndex = decision.revealIndex != null ? decision.revealIndex : drawnIndex;
 
           if (targetIndex !== null && !active.hand.isRevealed(targetIndex)) {
             const revealedBlock = active.hand.reveal(targetIndex);
-            this._emit('reveal_self', { player: active.name, position: targetIndex, block: blockLabel(revealedBlock) });
+            await this._emit('reveal_self', { player: active.name, position: targetIndex, block: blockLabel(revealedBlock) });
 
             const rehide2 = await strat.onOwnBlockRevealed(this._makeObservation(active, opponent), targetIndex);
             if (rehide2) {
               active.hand.slots[targetIndex].revealed = false;
-              this._emit('skill_used', { player: active.name, skill: '되감기' });
+              await this._emit('skill_used', { player: active.name, skill: '되감기' });
             }
 
             if (active.hand.allRevealed()) {
-              this._finish(opponent, active, 'all_blocks_revealed');
+              await this._finish(opponent, active, 'all_blocks_revealed');
               return;
             }
           } else {
-            this._emit('reveal_self_skipped', { player: active.name, reason: 'no_block_drawn_this_turn' });
+            await this._emit('reveal_self_skipped', { player: active.name, reason: 'no_block_drawn_this_turn' });
           }
         }
         break;
@@ -674,9 +706,9 @@ class MatchEngine {
     this.turn = 1 - this.turn;
   }
 
-  _finish(winner, loser, reason) {
+  async _finish(winner, loser, reason) {
     this.winner = winner;
-    this._emit('match_over', { winner: winner.name, loser: loser.name, reason });
+    await this._emit('match_over', { winner: winner.name, loser: loser.name, reason });
   }
 }
 
