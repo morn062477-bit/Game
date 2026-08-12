@@ -219,7 +219,10 @@ export class DeductiveStrategy extends Strategy {
       const excl = this.excluded.get(slotId) || new Set();
       const counter = new Map();
       unknown.forEach((b) => {
-        if (b.number >= lower[i] && b.number <= upper[i] && !excl.has(b.number)) {
+        // 이 자리는 '색'이 이미 공개돼 있으므로(규칙상 색은 항상 보임), 후보는 같은
+        // 색 블록만 될 수 있다. 색을 걸러내지 않으면 다른 색으로 이미 공개된 숫자를
+        // 여기서도 또 후보로 세는 버그가 생긴다(= 공개된 카드를 "잊어버리는" 원인).
+        if (b.color === block.color && b.number >= lower[i] && b.number <= upper[i] && !excl.has(b.number)) {
           counter.set(b.number, (counter.get(b.number) || 0) + 1);
         }
       });
@@ -426,8 +429,9 @@ export class SkilledHumanInputStrategy extends HumanInputStrategy {
   }
 
   onWrongGuess(obs, drawnIndex) {
+    // 쓸 수 있는 능력이 없어도, 오답 페널티로 공개할 카드는 항상 직접 고르게 한다
+    // (Scene이 usable.length로 능력 선택 팝업을 띄울지 곧바로 카드 선택으로 갈지 결정).
     const usable = ['bloodyTowel', 'letter', 'sickle'].filter((k) => this.hasSkill(k));
-    if (usable.length === 0) return super.onWrongGuess(obs, drawnIndex);
     return new Promise((resolve) => {
       this._resolveWrongGuessDecision = resolve;
       if (this.onNeedWrongGuessDecision) this.onNeedWrongGuessDecision(obs, usable, drawnIndex);
@@ -439,7 +443,9 @@ export class SkilledHumanInputStrategy extends HumanInputStrategy {
     if (this._resolveWrongGuessDecision) {
       const r = this._resolveWrongGuessDecision;
       this._resolveWrongGuessDecision = null;
-      r(decision || { skipReveal: false, redirectIndex: null, retryWithoutPenalty: false });
+      r(decision || {
+        skipReveal: false, redirectIndex: null, revealIndex: null, retryWithoutPenalty: false,
+      });
     }
   }
 
@@ -632,10 +638,15 @@ export class MatchEngine {
           // '보험'(피묻은 수건): 공개 자체를 건너뛴다.
           this._emit('skill_used', { player: active.name, skill: '보험' });
         } else {
-          // '미끼'(편지)가 지정한 위치가 있으면 그쪽을, 없으면 원래 뽑았던 블록을 공개한다.
-          const targetIndex = decision.redirectIndex != null ? decision.redirectIndex : drawnIndex;
+          // '미끼'(편지)가 지정한 위치가 있으면 그쪽을 공개하고 스킬 사용을 알린다.
+          // revealIndex는 스킬 없이 "공개할 카드를 직접 고르는" 경우로, 스킬 소모 없이
+          // 그 위치를 그대로 공개 대상으로 쓴다. 둘 다 없으면 원래 뽑았던 블록을 공개한다.
+          let targetIndex = drawnIndex;
           if (decision.redirectIndex != null) {
+            targetIndex = decision.redirectIndex;
             this._emit('skill_used', { player: active.name, skill: '미끼' });
+          } else if (decision.revealIndex != null) {
+            targetIndex = decision.revealIndex;
           }
 
           if (targetIndex !== null && !active.hand.isRevealed(targetIndex)) {
