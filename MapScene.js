@@ -268,6 +268,11 @@ class MapScene extends Phaser.Scene {
       frameHeight: 342,
     });
 
+    // 단서 확보 현황 UI에 쓸 용의자별 단서 아이콘.
+    CLUE_SUSPECT_ORDER.forEach((npcId) => {
+      this.load.image(`clue-${npcId}`, `asset/clues/${npcId}.png?v=${v}`);
+    });
+
     // 정적 장식: 항구 배경 그림에서 배만 오려낸 그림(배경을 투명하게 뺀 것). 배 두 척.
     this.load.image('boat-small', `asset/decorations/boat_small.png?v=${v}`);
     this.load.image('boat-large', `asset/decorations/boat_large.png?v=${v}`);
@@ -1229,45 +1234,71 @@ startFinalGatherDialogue() {
   // 여기서는 그 값을 읽어서 보여주기만 하면 된다 - 맵으로 돌아올 때마다 create()가 다시
   // 불리니(scene.start/restart) 그때그때 최신 상태로 새로 그려진다.
   setupClueTracker(uiX, uiY, uiLen, uiFont) {
-    const rowH = 22;
-    const boxW = 168;
-    const boxH = 34 + CLUE_SUSPECT_ORDER.length * rowH;
-    const boxX = this.cameras.main.width - boxW - 16;
-    const boxY = 16;
+    const circleR = 22;
+    const gap = 16;
+    const count = CLUE_SUSPECT_ORDER.length;
+    const rowW = count * circleR * 2 + (count - 1) * gap;
+    // 예전엔 화면 맨 위(y=16)였는데 너무 위쪽 구석이라 아래로 내렸다.
+    const boxY = 96;
+    const firstCx = this.cameras.main.width - rowW + circleR - 16;
 
-    this.clueTrackerBg = this.add.graphics().setScrollFactor(0).setDepth(2500);
-    this.clueTrackerBg.fillStyle(0x000000, 0.55);
-    this.clueTrackerBg.fillRoundedRect(uiX(boxX), uiY(boxY), uiLen(boxW), uiLen(boxH), uiLen(8));
-    this.clueTrackerBg.lineStyle(uiLen(2), 0xb8860b, 0.8);
-    this.clueTrackerBg.strokeRoundedRect(uiX(boxX), uiY(boxY), uiLen(boxW), uiLen(boxH), uiLen(8));
-
-    this.clueTrackerTitle = this.add.text(uiX(boxX + 12), uiY(boxY + 8), '', {
+    this.clueTrackerTitle = this.add.text(uiX(this.cameras.main.width - 16), uiY(boxY - circleR - 20), '', {
       fontSize: uiFont(13), fill: '#e8c86a', fontStyle: 'bold',
-    }).setScrollFactor(0).setDepth(2501);
+    }).setOrigin(1, 0).setScrollFactor(0).setDepth(2501);
 
-    this.clueTrackerRows = CLUE_SUSPECT_ORDER.map((npcId, i) => this.add.text(
-      uiX(boxX + 12), uiY(boxY + 30 + i * rowH), '', { fontSize: uiFont(12), fill: '#999999' },
-    ).setScrollFactor(0).setDepth(2501));
+    this.clueTrackerSlots = CLUE_SUSPECT_ORDER.map((npcId, i) => {
+      const cx = firstCx + i * (circleR * 2 + gap);
+      const cy = boxY;
+
+      // 빈 슬롯(아직 못 얻은 단서): 어두운 원 + 청동 테두리.
+      const bg = this.add.graphics().setScrollFactor(0).setDepth(2500);
+      bg.fillStyle(0x000000, 0.55);
+      bg.fillCircle(uiX(cx), uiY(cy), uiLen(circleR));
+      bg.lineStyle(uiLen(2), 0xb8860b, 0.8);
+      bg.strokeCircle(uiX(cx), uiY(cy), uiLen(circleR));
+
+      // 채워진 단서: asset/clues의 실제 그림을 원 모양으로 잘라서 보여준다.
+      const texKey = `clue-${npcId}`;
+      const icon = this.add.image(uiX(cx), uiY(cy), texKey)
+        .setScrollFactor(0).setDepth(2501).setVisible(false);
+      if (this.textures.exists(texKey)) {
+        const src = this.textures.get(texKey).getSourceImage();
+        icon.setScale(uiLen(circleR * 2) / Math.max(src.width, src.height));
+      }
+      const maskShape = this.make.graphics({ x: 0, y: 0 }, false).setScrollFactor(0);
+      maskShape.fillStyle(0xffffff);
+      maskShape.fillCircle(uiX(cx), uiY(cy), uiLen(circleR));
+      icon.setMask(maskShape.createGeometryMask());
+
+      const ring = this.add.graphics().setScrollFactor(0).setDepth(2502).setVisible(false);
+      ring.lineStyle(uiLen(2), 0xffe9a8, 1);
+      ring.strokeCircle(uiX(cx), uiY(cy), uiLen(circleR));
+
+      return { npcId, bg, icon, ring };
+    });
 
     this.refreshClueTracker();
   }
 
   setClueTrackerVisible(visible) {
-    this.clueTrackerBg?.setVisible(visible);
     this.clueTrackerTitle?.setVisible(visible);
-    this.clueTrackerRows?.forEach(row => row.setVisible(visible));
+    this.clueTrackerSlots?.forEach(({ bg, icon, ring, npcId }) => {
+      bg.setVisible(visible);
+      const obtained = window.GameSave?.state?.data?.suspects?.[npcId]?.clueObtained === true;
+      icon.setVisible(visible && obtained);
+      ring.setVisible(visible && obtained);
+    });
   }
 
   refreshClueTracker() {
-    if (!this.clueTrackerRows) return;
+    if (!this.clueTrackerSlots) return;
     const suspects = window.GameSave?.state?.data?.suspects || {};
     let obtainedCount = 0;
-    CLUE_SUSPECT_ORDER.forEach((npcId, i) => {
+    this.clueTrackerSlots.forEach(({ npcId, icon, ring }) => {
       const obtained = suspects[npcId]?.clueObtained === true;
       if (obtained) obtainedCount += 1;
-      const name = NPC_DISPLAY_NAME[npcId] || npcId;
-      this.clueTrackerRows[i].setText(`${obtained ? '☑' : '☐'} ${name}`);
-      this.clueTrackerRows[i].setColor(obtained ? '#ffe9a8' : '#999999');
+      icon.setVisible(obtained);
+      ring.setVisible(obtained);
     });
     this.clueTrackerTitle.setText(`단서 ${obtainedCount}/${CLUE_SUSPECT_ORDER.length}`);
   }
