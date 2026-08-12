@@ -706,16 +706,20 @@ class MapScene extends Phaser.Scene {
             }
         );
     }
-    if (this.storyEvent === 'forestDiscovery') {
+    const story = window.GameSave?.state?.data?.story;
+    // 농부 도주 뒤 플레이어가 직접 마을의 숲 포탈을 통과해 처음 도착했을 때만
+    // 랜턴 발견/수리 장면을 시작한다.
+    if (this.storyEvent === 'forestDiscovery'
+      || (this.currentMapKey === 'map_02_forest' && story?.phase === 'farmer_escape')) {
       this.time.delayedCall(350, () => this.scene.start('EndingStoryScene', { route: 'forestDiscovery' }));
     }
-    const story = window.GameSave?.state?.data?.story;
     if (this.currentMapKey === 'map_08_body' && story?.phase === 'hidden_forest' && story.bodyFound === false) {
       this.time.delayedCall(450, () => this.scene.start('EndingStoryScene', { route: 'bodyConfession' }));
     }
     // 8. 오프닝 컷씬. 맨 처음 마을에 들어왔을 때(포탈을 타고 온 게 아니라 게임을 막 시작했을
     // 때)만 한 번 재생한다.
-    if (this.currentMapKey === 'map_01_village' && !this.fromMapKey && !hasPlayedIntro &&  !this.endingGather ) {
+    if (this.currentMapKey === 'map_01_village' && !this.fromMapKey && !hasPlayedIntro
+      && !this.endingGather && (!story || story.phase === 'investigation')) {
       hasPlayedIntro = true;
       this.playIntroCutscene(map);
     }
@@ -813,6 +817,10 @@ class MapScene extends Phaser.Scene {
     const npcObjects = map.getObjectLayer('npc')?.objects || [];
     npcObjects.forEach((obj, i) => {
       if (!obj.name) return;
+      const storyPhase = window.GameSave?.state?.data?.story?.phase;
+      const isEndingForest = this.currentMapKey === 'map_02_forest'
+        && ['farmer_escape', 'hidden_forest', 'confession', 'ending'].includes(storyPhase);
+      if (isEndingForest && (obj.name === 'hunter' || obj.name === 'boy')) return;
       const data = { id: obj.name, name: NPC_DISPLAY_NAME[obj.name] || obj.name };
       const texKey = npcTextureKeys[obj.name];
 

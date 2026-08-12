@@ -177,7 +177,9 @@ class EndingStoryScene extends Phaser.Scene {
       await this.safeSave();
       this.cameras.main.fadeOut(300, 0, 0, 0);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
-        this.scene.start('MapScene', { mapKey: 'map_02_forest', storyEvent: 'forestDiscovery' });
+        // 농부가 도망친 뒤 곧바로 숲으로 순간이동시키지 않는다. 마을에서 조작권을
+        // 돌려주고, 플레이어가 직접 숲 입구까지 추적하게 한다.
+        this.scene.start('MapScene', { mapKey: 'map_01_village' });
       });
       return;
     }
