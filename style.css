@@ -1,0 +1,645 @@
+/* =========================================
+   다빈치코드 카드 숫자 전용 웹폰트
+========================================= */
+
+@font-face {
+    font-family: 'Blacksword';
+    src: url('asset/fonts/Blacksword.woff') format('woff');
+}
+
+
+/* =========================================
+   전체 기본 설정
+========================================= */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+}
+
+body {
+    background: #000;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    overflow: hidden;
+}
+
+/* Phaser 게임 캔버스 */
+canvas {
+    display: block;
+}
+
+
+
+
+/* =========================================
+   로그인 / 회원가입 전체 화면
+========================================= */
+
+#auth-screen {
+    position: fixed;
+
+    /* Phaser 게임 화면과 동일 */
+    width: 960px;
+    height: 540px;
+
+    left: 50%;
+    top: 50%;
+
+    transform: translate(-50%, -50%);
+
+    /* Suspicion 배경 */
+    background-color: #000;
+    background-image: url("asset/login/login.png");
+
+    /*
+       16:9 이미지이므로 게임 화면에 정확히 맞춤.
+       cover보다 미세한 경계선이 생길 가능성이 적음.
+    */
+    background-size: 100% 100%;
+    background-position: center center;
+    background-repeat: no-repeat;
+
+    display: none;
+
+    /*
+       로그인 UI를 우측 아래 방향으로 보냄.
+       완전히 바닥에는 붙이지 않음.
+    */
+    justify-content: flex-end;
+    align-items: flex-end;
+
+    padding:
+        0
+        42px
+        62px
+        0;
+
+    overflow: hidden;
+
+    /*
+       이미지 하단에 얇은 밝은 픽셀이 있더라도
+       화면 맨 아래 2px을 검정으로 덮음.
+    */
+    box-shadow:
+        inset 0 -2px 0 #000;
+
+    z-index: 1000;
+}
+
+
+/* =========================================
+   로그인 / 회원가입 영역
+========================================= */
+
+#auth-box {
+    width: 310px;
+
+    /*
+       기존처럼 큰 패널로 보이지 않도록
+       여백을 줄이고 배경도 더 투명하게
+    */
+    padding: 18px 20px 18px 20px;
+
+    background:
+        rgba(8, 6, 5, 0.64);
+
+    /*
+       너무 웹사이트 카드처럼 보이지 않게
+       외곽선도 약하게 처리
+    */
+    border:
+        1px solid
+        rgba(151, 102, 50, 0.42);
+
+    box-shadow:
+        0 8px 24px
+        rgba(0, 0, 0, 0.35);
+
+    text-align: center;
+
+    font-family:
+        "Galmuri9",
+        sans-serif;
+}
+
+
+/* =========================================
+   로그인 / 회원가입 제목
+========================================= */
+
+#auth-box h1 {
+    margin-bottom: 18px;
+
+    color:
+        rgba(255, 255, 255, 0.96);
+
+    font-family:
+        "Galmuri9",
+        sans-serif;
+
+    font-size: 27px;
+    font-weight: normal;
+
+    letter-spacing: 2px;
+
+    text-align: center;
+}
+
+
+/* =========================================
+   기존 상단 로그인 / 회원가입 탭
+
+   이제 사용하지 않으므로 숨김
+========================================= */
+
+#auth-tabs {
+    display: none;
+}
+
+
+/* =========================================
+   로그인 / 회원가입 입력칸
+========================================= */
+
+#auth-box input {
+    display: block;
+
+    width: 100%;
+    height: 39px;
+
+    margin-bottom: 9px;
+
+    padding:
+        0
+        11px;
+
+    /*
+       완전 새하얀 웹 입력칸보다
+       약간 어두운 베이지 계열
+    */
+    background:
+        rgba(215, 205, 188, 0.92);
+
+    border:
+        1px solid
+        rgba(118, 81, 45, 0.65);
+
+    border-radius: 0;
+
+    outline: none;
+
+    color: #20170f;
+
+    font-family:
+        "Galmuri9",
+        sans-serif;
+
+    font-size: 13px;
+}
+
+
+/* 입력 중 */
+#auth-box input:focus {
+    background:
+        rgba(230, 219, 199, 0.97);
+
+    border-color:
+        rgba(199, 145, 75, 0.95);
+
+    box-shadow:
+        inset 0 0 0 1px
+        rgba(199, 145, 75, 0.25);
+}
+
+
+/* placeholder */
+#auth-box input::placeholder {
+    color:
+        rgba(52, 40, 29, 0.58);
+}
+
+
+/* =========================================
+   기존 form 내부 버튼
+
+   기존 HTML을 아직 사용하고 있을 때를 위한
+   기본 스타일
+========================================= */
+
+#auth-box form > button {
+    width: 100%;
+    height: 39px;
+
+    margin-top: 4px;
+
+    background:
+        transparent;
+
+    border:
+        1px solid
+        rgba(178, 124, 65, 0.58);
+
+    border-radius: 0;
+
+    color:
+        rgba(255, 255, 255, 0.88);
+
+    font-family:
+        "Galmuri9",
+        sans-serif;
+
+    font-size: 14px;
+
+    cursor: pointer;
+
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+#auth-box form > button:hover,
+#auth-box form > button:focus {
+    background:
+        rgba(112, 72, 37, 0.48);
+
+    color: #fff;
+
+    outline: none;
+}
+
+
+/* =========================================
+   앞으로 사용할 로그인 / 회원가입
+   하단 2버튼 영역
+
+   HTML에 class="auth-actions"를 추가하면 적용됨
+========================================= */
+
+.auth-actions {
+    display: flex;
+
+    width: 100%;
+
+    gap: 10px;
+
+    margin-top: 10px;
+}
+
+
+/* =========================================
+   로그인 / 회원가입 하단 선택 버튼
+========================================= */
+
+.auth-actions button {
+    position: relative;
+
+    flex: 1;
+
+    height: 38px;
+
+    padding: 0;
+
+    background:
+        transparent;
+
+    border: none;
+
+    box-shadow: none;
+
+    border-radius: 0;
+
+    outline: none;
+
+    appearance: none;
+    -webkit-appearance: none;
+
+    color:
+        rgba(255, 255, 255, 0.55);
+
+    font-family:
+        "Galmuri9",
+        sans-serif;
+
+    font-size: 14px;
+
+    cursor: pointer;
+}
+
+
+/* 선택 시 밝게 */
+.auth-actions button:hover,
+.auth-actions button:focus {
+    color:
+        rgba(255, 255, 255, 0.98);
+
+    text-shadow:
+        0 0 6px
+        rgba(255, 255, 255, 0.18);
+}
+
+
+/* =========================================
+   로그인 상태 / 오류 메시지
+========================================= */
+
+#auth-message {
+    min-height: 16px;
+
+    margin-top: 8px;
+
+    color:
+        rgba(255, 255, 255, 0.72);
+
+    font-family:
+        "Galmuri9",
+        sans-serif;
+
+    font-size: 11px;
+
+    text-align: center;
+}
+
+
+/* =========================================
+   새 게임 / 이어하기 / 로그아웃 화면
+========================================= */
+
+#save-screen {
+    position: fixed;
+
+    width: 960px;
+    height: 540px;
+
+    left: 50%;
+    top: 50%;
+
+    transform:
+        translate(-50%, -50%);
+
+    background-color: #000;
+
+    background-image:
+        url("asset/login/login.png");
+
+    background-size:
+        100% 100%;
+
+    background-position:
+        center center;
+
+    background-repeat:
+        no-repeat;
+
+    display: none;
+
+    /*
+       참고 이미지처럼
+       오른쪽 아래에 메뉴 배치
+    */
+    justify-content: flex-end;
+    align-items: flex-end;
+
+    /*
+       우측/하단에서 적당히 띄움
+    */
+    padding:
+        0
+        54px
+        62px
+        0;
+
+    overflow: hidden;
+
+    /*
+       배경 이미지 하단 밝은 픽셀 가림
+    */
+    box-shadow:
+        inset 0 -2px 0 #000;
+
+    z-index: 1000;
+}
+
+
+/* =========================================
+   새 게임 메뉴 영역
+
+   별도의 네모 박스 없음
+========================================= */
+
+#save-box {
+    width: 210px;
+
+    padding: 0;
+
+    background:
+        transparent;
+
+    border: none;
+
+    box-shadow: none;
+
+    text-align: left;
+
+    font-family:
+        "Galmuri9",
+        sans-serif;
+}
+
+
+/* "게임 시작" 제목은 표시하지 않음 */
+#save-box h1 {
+    display: none;
+}
+
+
+/* =========================================
+   새 게임 / 이어하기 / 로그아웃
+========================================= */
+
+#save-box button {
+    position: relative;
+
+    display: block;
+
+    width: 100%;
+
+    margin:
+        0
+        0
+        7px
+        0;
+
+    /*
+       왼쪽 선택 표시 공간
+    */
+    padding:
+        5px
+        0
+        5px
+        28px;
+
+    background:
+        transparent;
+
+    border: none;
+
+    box-shadow: none;
+
+    border-radius: 0;
+
+    outline: none;
+
+    appearance: none;
+    -webkit-appearance: none;
+
+    color:
+        rgba(255, 255, 255, 0.42);
+
+    text-align: left;
+
+    font-family:
+        "Galmuri9",
+        sans-serif;
+
+    font-size: 25px;
+    font-weight: normal;
+
+    line-height: 1.25;
+
+    letter-spacing: 1px;
+
+    cursor: pointer;
+
+    transition:
+        color 0.1s ease,
+        text-shadow 0.1s ease;
+}
+
+
+/* =========================================
+   메뉴 왼쪽 선택 표시
+========================================= */
+
+#save-box button::before {
+    content: "◈";
+
+    position: absolute;
+
+    left: 0;
+    top: 50%;
+
+    transform:
+        translateY(-50%);
+
+    opacity: 0;
+
+    color:
+        rgba(218, 164, 91, 0.95);
+
+    font-size: 15px;
+}
+
+
+/* =========================================
+   활성 메뉴
+========================================= */
+
+#save-box button:hover,
+#save-box button:focus,
+#save-box button.is-active {
+    color:
+        rgba(255, 255, 255, 0.96);
+
+    text-shadow:
+        0 0 7px
+        rgba(255, 255, 255, 0.14);
+}
+
+
+/* 선택 표시 표시 */
+#save-box button:hover::before,
+#save-box button:focus::before,
+#save-box button.is-active::before {
+    opacity: 1;
+}
+
+
+/* =========================================
+   이어하기 비활성화
+========================================= */
+
+#save-box button:disabled {
+    color:
+        rgba(255, 255, 255, 0.18);
+
+    cursor: default;
+
+    text-shadow: none;
+}
+
+#save-box button:disabled::before {
+    opacity: 0;
+}
+
+
+/* =========================================
+   세이브 메시지
+========================================= */
+
+#save-message {
+    min-height: 16px;
+
+    margin-top: 8px;
+
+    color:
+        rgba(255, 255, 255, 0.55);
+
+    font-family:
+        "Galmuri9",
+        sans-serif;
+
+    font-size: 10px;
+}
+
+
+/* =========================================
+   화면 크기가 960×540보다 작을 때
+========================================= */
+
+@media (max-width: 1000px), (max-height: 580px) {
+
+    #auth-screen,
+    #save-screen {
+        width:
+            min(960px, 100vw);
+
+        height:
+            min(540px, 56.25vw);
+    }
+
+    #auth-screen {
+        padding:
+            0
+            30px
+            38px
+            0;
+    }
+
+    #save-screen {
+        padding:
+            0
+            40px
+            38px
+            0;
+    }
+}
