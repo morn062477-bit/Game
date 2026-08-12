@@ -9,14 +9,45 @@ const ENDING_STORY_ROUTES = {
   },
   farmerConfrontation: {
     lines: [
-      ['탐정', '농부와 이장의 갈등만으로 당신을 지목한 것이 아닙니다.'],
-      ['탐정', '사건 당일, 농지 전체 수용이 확정됐습니다.'],
-      ['탐정', '어부에게서 굵은 밧줄을 빌린 기록도 있습니다.'],
-      ['탐정', '딸이 먼저 집에 간 뒤 당신의 알리바이에는 공백이 생겼습니다.'],
-      ['탐정', '딸에게서 이장 부부가 숲으로 갔다는 말을 들었지요. 이장이 혼자 남을 것도 알았습니다.'],
-      ['탐정', '그리고 당신의 랜턴도 사건의 흐름과 연결됩니다.'],
-      ['농부', '……그만하십시오.'], ['탐정', '이장을 만났습니까?'], ['농부', '그만!'],
-      ['내레이션', '농부가 갑자기 자리에서 뛰쳐나간다.'], ['사냥꾼', '야!'], ['탐정', '농부!'],
+      ['탐정', '범인은 농부입니다.'],
+      ['내레이션', '방 안이 조용해진다.'],
+      ['어부', '……농부가?'],
+      ['이장 부인', '정말인가요?'],
+      ['내레이션', '화가는 아무 말도 하지 못한 채 농부를 바라본다.'],
+      ['농부', '근거가 있습니까?\n제가 이장과 사이가 좋지 않았다는 이유라면 여기 있는 누구에게나 똑같이 적용될 텐데요.'],
+      ['탐정', '맞습니다. 당신이 이장을 미워했다는 사실만으로 당신을 범인이라 생각한 것은 아닙니다.'],
+      ['탐정', '사건이 있기 전까지 당신과 이장의 갈등은 다른 용의자들과 크게 다르지 않았습니다.'],
+      ['탐정', '하지만 사건 당일 상황이 달라졌습니다.'],
+      ['탐정', '당신은 그날 이장에게 토지 수용이 최종 확정되었다는 통보를 받았습니다.'],
+      ['탐정', '그 전날까지 협의 중이라고 믿었던 땅이 그날 갑자기 사라지게 된 겁니다.'],
+      ['농부', '그건 동기일 뿐입니다.'],
+      ['탐정', '맞습니다. 그래서 다른 것들도 확인했습니다.'],
+      ['탐정', '어부의 장부에는 당신이 굵은 밧줄을 빌려간 기록이 있습니다. 반환 기록은 없습니다.'],
+      ['농부', '농사짓는 사람이 밧줄을 빌리는 게 이상합니까?'],
+      ['탐정', '그것도 이상하지 않습니다. 그리고 당신이 사건 당일 저녁까지 밭에서 일했다는 것도 사실입니다. 당신 딸이 확인했습니다.'],
+      ['농부', '그렇다면…….'],
+      ['탐정', '하지만 딸이 먼저 집으로 돌아간 뒤 당신의 행적을 증명하는 사람은 없습니다.'],
+      ['탐정', '당신은 일을 끝낸 뒤 곧바로 집에 갔다고 말했지만 그걸 본 사람은 아무도 없습니다.'],
+      ['탐정', '그리고 더 중요한 사실이 하나 있습니다. 당신은 사건 당시 이장이 어디에 있는지도 알고 있었습니다.'],
+      ['농부', '…….'],
+      ['탐정', '당신 딸은 이장 부인과 이장이 차례로 숲으로 가는 모습을 봤습니다. 그리고 그 이야기를 밭에 있던 당신에게 직접 말했습니다.'],
+      ['탐정', '이장 부인은 숲에서 이장과 다툰 뒤 먼저 돌아왔습니다.'],
+      ['탐정', '그러니까 그 순간 당신은 알고 있었던 겁니다. 이장이 혼자 숲에 남아 있다는 사실을.'],
+      ['농부', '……그것만으로 제가 죽였다는 겁니까?'],
+      ['탐정', '아닙니다. 밧줄. 사건 당일 갑자기 생긴 동기. 알리바이의 공백. 이장의 위치를 알고 있었다는 사실. 그리고 당신의 랜턴.'],
+      ['탐정', '하나씩 떼어놓고 보면 어느 것도 완전한 증거가 아닙니다.'],
+      ['탐정', '하지만 사건 전체를 하나의 흐름으로 놓고 보면 계속 같은 사람에게 돌아옵니다.'],
+      ['농부', '…….'],
+      ['탐정', '사건 당일 밤. 당신은 숲으로 갔습니까?'],
+      ['농부', '…….'],
+      ['탐정', '농부.'],
+      ['농부', '……그만하십시오.'],
+      ['탐정', '이장을 만났습니까?'],
+      ['농부', '그만!'],
+      ['내레이션', '농부가 갑자기 의자를 밀치고 일어난다.'],
+      ['사냥꾼', '야!'],
+      ['내레이션', '농부가 회관 밖으로 뛰쳐나간다.'],
+      ['탐정', '농부!'],
     ], next: 'forest',
   },
   forestDiscovery: {
@@ -68,9 +99,22 @@ const ENDING_STORY_ROUTES = {
   },
 };
 
+const ENDING_IMAGE_BY_ROUTE = {
+  bad: 'ending-bad',
+  normal: 'ending-normal',
+  true: 'ending-true',
+};
+
 class EndingStoryScene extends Phaser.Scene {
   constructor() { super('EndingStoryScene'); }
   init(data) { this.route = data.route; }
+
+  preload() {
+    const v = Date.now();
+    this.load.image('ending-bad', `asset/endings/bad-ending.png?v=${v}`);
+    this.load.image('ending-normal', `asset/endings/normal-ending.png?v=${v}`);
+    this.load.image('ending-true', `asset/endings/true-ending.png?v=${v}`);
+  }
 
   create() {
     this.scale.resize(960, 540);
@@ -129,6 +173,7 @@ class EndingStoryScene extends Phaser.Scene {
       save.story.phase = 'farmer_escape';
       save.story.farmerLantern = 'dead';
       save.story.batteryObtained = true;
+      this.replaceRewardClue(save, '농부의 랜턴', '고장난 농부의 랜턴');
       await this.safeSave();
       this.cameras.main.fadeOut(300, 0, 0, 0);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
@@ -138,9 +183,9 @@ class EndingStoryScene extends Phaser.Scene {
     }
     if (this.script.next === 'forestUnlocked') {
       save.story.farmerLantern = 'lit';
-      await this.safeSave();
       save.story.hiddenForestUnlocked = true;
       save.story.phase = 'hidden_forest';
+      this.replaceRewardClue(save, '고장난 농부의 랜턴', '고쳐진 농부의 랜턴');
       await this.safeSave();
       this.scene.start('MapScene', { mapKey: 'map_02_forest' });
       return;
@@ -160,8 +205,21 @@ class EndingStoryScene extends Phaser.Scene {
     try { await window.GameSave.saveGame(); } catch (error) { console.error(`[엔딩:${this.route}] 저장 실패:`, error); }
   }
 
+  replaceRewardClue(save, oldName, newName) {
+    if (!Array.isArray(save.rewardClues)) save.rewardClues = [];
+    const oldIndex = save.rewardClues.indexOf(oldName);
+    if (oldIndex >= 0) save.rewardClues.splice(oldIndex, 1, newName);
+    else if (!save.rewardClues.includes(newName)) save.rewardClues.push(newName);
+  }
+
   showEndingTitle([title, subtitle]) {
     this.children.removeAll(true);
+    const textureKey = ENDING_IMAGE_BY_ROUTE[this.route];
+    if (textureKey && this.textures.exists(textureKey)) {
+      const image = this.add.image(480, 270, textureKey).setOrigin(0.5);
+      image.setScale(Math.max(960 / image.width, 540 / image.height));
+      return;
+    }
     this.add.text(480, 225, title, { fontFamily: 'Galmuri11, sans-serif', fontSize: '44px', color: '#d9b66f' }).setOrigin(0.5);
     this.add.text(480, 300, subtitle, { fontFamily: 'Galmuri11, sans-serif', fontSize: '23px', color: '#f1eadf' }).setOrigin(0.5);
   }

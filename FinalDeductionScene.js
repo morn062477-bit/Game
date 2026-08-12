@@ -133,12 +133,15 @@ class FinalDeductionScene extends Phaser.Scene {
     this.helpText.setVisible(false);
     this.messageText.setText('');
     const a = this.answers;
+    const helperSentence = a.coverupHelper === 'none'
+      ? '범행 은폐를 도운 인물은 없다고 판단합니다.'
+      : `또한 ${a.coverupHelperLabel}는 ${a.coverupItemLabel}의 흔적을 알고도 이를 감추어 사건의 진실을 은폐하는 데 일조했습니다.`;
     const summary = [
-      '제 추리는 이렇습니다.',
       `범인은 ${a.culpritLabel}입니다.`,
-      `${a.weaponLabel}을 사용해, ${a.motiveLabel} 때문에 이장을 살해했습니다.`,
-      `이후 ${a.transportLabel}로 시신을 옮겨 ${a.disposalLabel}에 유기했습니다.`,
-      `범행 흔적에는 ${a.coverupItemLabel}이 관련되었고, 은폐 조력자는 ${a.coverupHelperLabel}입니다.`,
+      `범인은 ${a.motiveLabel}로 인해 격한 감정을 품고 ${a.weaponLabel}을 사용해 이장을 살해했습니다.`,
+      `이후 ${a.coverupItemLabel}(으)로 범행 흔적을 감추고, ${a.transportLabel}을 이용해 시신을 옮겼습니다.`,
+      `고쳐진 농부의 랜턴으로 길을 밝혀 시신을 ${a.disposalLabel}에 유기했습니다.`,
+      helperSentence,
     ].join('\n\n');
     const body = this.add.text(100, 125, summary, {
       fontFamily: 'Galmuri11, sans-serif', fontSize: '17px', color: '#eee5d4',
@@ -181,7 +184,8 @@ class FinalDeductionScene extends Phaser.Scene {
     const coreCorrect = this.answers.weapon === 'hunterSickle'
       && this.answers.motive === 'landDevelopment'
       && this.answers.transport === 'rope'
-      && this.answers.disposal === 'hiddenForest';
+      && this.answers.disposal === 'hiddenForest'
+      && this.answers.coverupItem === 'painterTowel';
     if (!coreCorrect) {
       this.answers = {}; this.stepIndex = 0;
       this.showStep('아직 설명되지 않는 단서가 있다. 추리를 다시 확인해야 한다.');

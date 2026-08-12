@@ -456,7 +456,13 @@ class MapScene extends Phaser.Scene {
     // width/height가 0으로 저장되므로, 사각형 취급하면 사실상 아무 것도 막지 못한다).
     const hiddenForestUnlocked = window.GameSave?.state?.data?.story?.hiddenForestUnlocked === true;
     this.walkdisableShapes = (map.getObjectLayer('walkdisable')?.objects || [])
-      .filter(obj => !(obj.name === 'hidden_forest_blocker' && hiddenForestUnlocked))
+      // 이전 맵 JSON에는 blocker 이름이 없으므로, 숨겨진 숲 입구 바로 아래를 막는
+      // walkdisable(id 14)도 랜턴을 고친 뒤에는 함께 제거한다.
+      .filter(obj => !(
+        hiddenForestUnlocked
+        && this.currentMapKey === 'map_02_forest'
+        && (obj.name === 'hidden_forest_blocker' || obj.id === 14)
+      ))
       .map(obj => obj.polygon
         ? new Phaser.Geom.Polygon(obj.polygon.map(p => ({ x: obj.x + p.x, y: obj.y + p.y })))
         : new Phaser.Geom.Rectangle(obj.x, obj.y, obj.width || 1, obj.height || 1));
@@ -866,7 +872,7 @@ class MapScene extends Phaser.Scene {
 
       this.physics.add.overlap(this.player, zone, () => {
         if (targetMap === 'map_08_body'
-          && window.GameSave?.state?.data?.story?.hiddenForestUnlocked !== true) {
+          && window.GameSave?.state?.data?.story?.farmerLantern !== 'lit') {
           if (!this.portalLockNotice || this.time.now > this.portalLockNotice) {
             this.portalLockNotice = this.time.now + 1500;
             this.interactText.setText('안쪽은 너무 어두워 들어갈 수 없다.').setVisible(true);
