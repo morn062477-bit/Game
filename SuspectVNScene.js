@@ -31,16 +31,20 @@ class SuspectVNScene extends Phaser.Scene {
   }
 
   preload() {
+    // 다른 곳(MapScene.js 등)과 마찬가지로 캐시 무효화 파라미터를 붙인다 - 안 그러면
+    // 그림을 새로 바꿔 올려도 브라우저가 예전에 받아둔 캐시된 이미지를 계속 써서
+    // 새로고침해도 반영이 안 된 것처럼 보인다.
+    const v = Date.now();
     const assets = SUSPECT_VN_ASSETS[this.npcId];
     this.bgKey = null;
     this.illustKey = null;
     if (assets?.bg) {
       this.bgKey = `vn-bg-${this.npcId}`;
-      this.load.image(this.bgKey, assets.bg);
+      this.load.image(this.bgKey, `${assets.bg}?v=${v}`);
     }
     if (assets?.illust) {
       this.illustKey = `vn-illust-${this.npcId}`;
-      this.load.image(this.illustKey, assets.illust);
+      this.load.image(this.illustKey, `${assets.illust}?v=${v}`);
     }
   }
 

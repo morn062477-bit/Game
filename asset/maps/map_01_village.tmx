@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="96" height="70" tilewidth="32" tileheight="32" infinite="0" nextlayerid="11" nextobjectid="59">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="96" height="70" tilewidth="32" tileheight="32" infinite="0" nextlayerid="11" nextobjectid="63">
  <editorsettings>
   <export target="map_01_village.json" format="json"/>
  </editorsettings>
@@ -277,8 +277,11 @@
     <property name="target_map" value="map_07_inter.tmx"/>
    </properties>
   </object>
+  <object id="62" name="start_point_map_05_lake" x="2900" y="1384">
+   <point/>
+  </object>
  </objectgroup>
- <objectgroup id="6" name="walkdisable">
+ <objectgroup id="6" name="walkdisable" visible="0">
   <object id="19" x="787.879" y="1321.21" width="163.636" height="42.4242"/>
   <object id="20" x="766.667" y="1430.3" width="48.4848" height="109.091"/>
   <object id="21" x="809.091" y="1578.79" width="154.545" height="42.4242"/>
@@ -303,26 +306,29 @@
   <object id="43" name="docter" x="2069.7" y="1209.09">
    <point/>
   </object>
+  <object id="59" name="village_woman2" x="1415.15" y="1151.52">
+   <point/>
+  </object>
  </objectgroup>
- <objectgroup id="8" name="saint_path">
+ <objectgroup id="8" name="saint_path" visible="0">
   <object id="54" x="1006.06" y="1530.3">
    <polyline points="0,0 3.0303,109.091 745.455,106.061 742.424,178.788 900,178.788"/>
   </object>
  </objectgroup>
- <objectgroup id="10" name="saint_flee_path">
+ <objectgroup id="10" name="saint_flee_path" visible="0">
   <object id="55" x="1918.18" y="1615.15">
    <polyline points="0,0 -384.848,-3.0303 -381.818,-360.606 -915.152,-354.545 -906.061,-130.303"/>
   </object>
  </objectgroup>
  <objectgroup id="5" name="walkable" visible="0">
-  <object id="32" x="312.121" y="6.06061">
+  <object id="32" x="318.181" y="-6.06065">
    <polygon points="0,0 0,1036.36 36.3636,1069.7 45.4545,1215.15 190.909,1263.64 266.667,1369.7 272.727,1524.24 209.091,1612.12 42.4242,1596.97 42.4242,1645.45 -54.5455,1648.48 -57.5758,1600 -178.788,1603.03 -175.758,1642.42 -263.636,1642.42 -263.636,1709.09 -84.8485,1706.06 -75.7576,1739.39 21.2121,1730.3 21.2121,1775.76 96.9697,1775.76 96.9697,1854.55 272.727,1854.55 263.636,1745.45 430.303,1751.52 481.818,1760.61 493.939,1854.55 954.545,1860.61 948.485,1739.39 1054.55,1742.42 1048.48,1824.24 1124.24,1821.21 1124.24,1945.45 1151.52,1948.48 1145.45,2245.45 1312.12,2248.48 1293.94,1963.64 1342.42,1963.64 1339.39,1818.18 1430.3,1815.15 1430.3,1781.82 1475.76,1784.85 1472.73,1842.42 1681.82,1851.52 1672.73,1575.76 1666.67,1551.52 1706.06,1554.55 1951.52,1563.64 1954.55,1854.55 2206.06,1875.76 2200,1727.27 2300,1739.39 2300,1800 2384.85,1812.12 2384.85,1857.58 2642.42,1863.64 2645.45,1827.27 2745.45,1830.3 2739.39,1700 2596.97,1706.06 2409.09,1693.94 2327.27,1642.42 2281.82,1603.03 2281.82,1503.03 2372.73,1503.03 2363.64,1466.67 2754.55,1466.67 2754.55,1293.94 2678.79,1309.09 2445.45,1303.03 2442.42,1030.3 2457.58,960.606 2448.48,860.606 2490.91,763.636 2469.7,696.97 1709.09,703.03 1724.24,-3.0303 1590.91,-6.06061 1587.88,1184.85 1375.76,1190.91 1378.79,1096.97 1154.55,1090.91 1157.58,1151.52 1039.39,1139.39 1036.36,1203.03 948.485,1206.06 787.879,1109.09 678.788,1212.12 530.303,1212.12 527.273,1133.33 478.788,1133.33 478.788,1069.7 369.697,1063.64 366.667,1136.36 269.697,1136.36 269.697,1157.58 166.667,1154.55 151.515,0"/>
   </object>
   <object id="33" x="848.485" y="1409.09" width="100" height="115.152"/>
   <object id="34" x="948.485" y="1524.24"/>
   <object id="35" x="987.879" y="572.727"/>
  </objectgroup>
- <objectgroup id="9" name="detective_path">
+ <objectgroup id="9" name="detective_path" visible="0">
   <object id="56" x="1533.33" y="2042.43">
    <polyline points="0,0 6.06061,-378.788 348.485,-375.758"/>
   </object>
