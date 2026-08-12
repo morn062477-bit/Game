@@ -264,6 +264,9 @@ async function initializeAuth() {
             user.email
         );
 
+        // 다빈치코드 등에서 "나" 대신 실제 닉네임을 보여줄 때 쓴다.
+        window.playerNickname = user.user_metadata?.nickname || null;
+
         authScreen.style.display = "none";
 
         await showSaveScreen();
@@ -324,10 +327,12 @@ loginForm.addEventListener(
             "로그인 중...";
 
         try {
-            await GameAuth.signIn(
+            const result = await GameAuth.signIn(
                 email,
                 password
             );
+
+            window.playerNickname = result?.user?.user_metadata?.nickname || null;
 
             authMessage.textContent = "";
 
@@ -380,6 +385,8 @@ signupForm.addEventListener(
                 password,
                 nickname
             );
+
+            window.playerNickname = nickname;
 
             authMessage.textContent = "";
 

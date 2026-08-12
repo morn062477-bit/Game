@@ -30,8 +30,10 @@ const REVEAL_LIFT = Math.round(20 * CARD_SCALE); // 내 카드가 상대에게 �
 // 위/아래 초상+대화창은 크기를 동일하게 맞췄고(요청사항 10), SKILL은 카드 줄 옆
 // 원형 버튼 대신 각 대화창 모서리의 작은 버튼으로 옮겨서(요청사항 9) 매트 가운데를
 // 더 넓게 비워 카드를 크게 키울 수 있게 했다(요청사항 8).
-const TOP_H = 120;
-const BOTTOM_H = 120;
+// 이름표를 대화 텍스트 위에 추가하면서 세로 공간이 더 필요해져서 120 -> 150으로
+// 키웠다(안 그러면 2줄짜리 대사가 대화창 아래쪽 테두리에 잘려 보인다).
+const TOP_H = 150;
+const BOTTOM_H = 150;
 const MAT_Y = TOP_H;
 const MAT_H = 700 - TOP_H - BOTTOM_H;
 const PORTRAIT_W = 140;
@@ -119,6 +121,12 @@ class DaVinciCodeScene extends Phaser.Scene {
     // 알아야 하므로 SuspectVNScene이 넘겨준 npc 정보도 같이 들고 있는다.
     this.npcId = data && data.npcId;
     this.npcName = data && data.npcName;
+    // 화면에 보여줄 이름은 내부 로직용 봇1~봇6("botName")이 아니라 실제 이름으로
+    // 표시한다 - 상대는 MapScene의 NPC_DISPLAY_NAME을 거쳐 넘어온 npcName(예:
+    // "이장 부인"), 나는 로그인 닉네임(있으면). BOT_ITEM_ASSIGNMENT/이벤트 데이터
+    // 비교 등 내부 로직은 여전히 this.botName('봇1'~'봇6')을 그대로 써야 한다.
+    this.botDisplayName = this.npcName || this.botName;
+    this.playerDisplayName = window.playerNickname || '나';
     // 대전이 끝나고 "맵으로 돌아가기"를 누르면 원래 있던 맵/자리로 정확히 돌아가야
     // 하므로 SuspectVNScene이 넘겨준 맵 키와 좌표(대화를 걸었던 자리)를 기억해둔다.
     this.returnMapKey = (data && data.returnMapKey) || 'map_01_village';
@@ -137,6 +145,14 @@ class DaVinciCodeScene extends Phaser.Scene {
     const v = Date.now();
     this.load.image('coinFaceA', `asset/davinci/coin_face_a.png?v=${v}`);
     this.load.image('coinFaceB', `asset/davinci/coin_face_b.png?v=${v}`);
+    // 내(주인공) 초상화.
+    this.load.image('portraitPlayer', `asset/characters/용의자들-주인공/davinci_main.png?v=${v}`);
+    // 상대(용의자) 초상화. asset/davinci/<npcId>.png 규칙으로 올라와 있다 - 그림이
+    // 없는 용의자는 이 목록에 없으니 기존처럼 실루엣 placeholder로 대체된다.
+    const OPPONENT_PORTRAIT_IDS = ['wife', 'hunter', 'farmer', 'painter', 'fisher'];
+    if (OPPONENT_PORTRAIT_IDS.includes(this.npcId)) {
+      this.load.image('portraitOpponent', `asset/davinci/${this.npcId}.png?v=${v}`);
+    }
 
     // 배경(원목 테이블) / 매트(초록 카드 매트) / 카드 뒷면 디자인.
     this.load.image('tableWood', `asset/davinci/wood_bg.png?v=${v}`);
@@ -154,6 +170,11 @@ class DaVinciCodeScene extends Phaser.Scene {
   }
 
   create() {
+    // 초상화 이미지 배경을 자동으로 투명하게 만든다 - 상대/내 초상화 그림을 새로 넣을
+    // 때마다 매번 수동으로 배경을 지워줄 필요 없이, 여기 등록해두기만 하면 된다.
+    this.makeBackgroundTransparent('portraitPlayer');
+    this.makeBackgroundTransparent('portraitOpponent');
+
     // 마을 배경음악(bgm-main과, 맵에 따라 같이 깔려있었을 bgm-water/bgm-port)은
     // 멈추고 다빈치코드 전용 배경음악으로 바꿔서 튼다.
     ['bgm-main', 'bgm-water', 'bgm-port'].forEach(key => {
@@ -180,18 +201,26 @@ class DaVinciCodeScene extends Phaser.Scene {
     // 12px에 정확히 그리고, 다 그려진 텍스트 객체 자체를 2배로 확대(setScale)한다 -
     // 래스터라이즈 이후에 확대하는 거라 글자가 깨지지 않는다. wordWrap 너비는
     // 확대 후 폭이 원래와 같아지도록 절반(260)으로 줄여둔다.
-    this.drawPortraitBox(0, 0, PORTRAIT_W, TOP_H, 0xd8cfae, 0x2b2620);
+    this.drawPortraitBox(0, 0, PORTRAIT_W, TOP_H, 0x2a1f14, 0xb8860b, 'portraitOpponent');
     this.drawDialogueBox(PORTRAIT_W + 10, 10, 1200 - PORTRAIT_W - 24, TOP_H - 20);
-    this.opponentDialogueText = this.add.text(PORTRAIT_W + 24, 22, '', {
-      fontFamily: FONT, fontSize: '12px', color: '#2b2620', lineSpacing: 4,
-      wordWrap: { width: 260 },
+    // 대화 텍스트와 같은 이유로(Galmuri는 도트 폰트라 fontSize를 바로 키우면 글자가
+    // 깨진다) 작게 그린 뒤 통째로 확대한다.
+    this.add.text(PORTRAIT_W + 24, 14, `[${this.botDisplayName}]`, {
+      fontFamily: FONT_BOLD, fontSize: '13px', color: '#e8c86a',
+    }).setScale(2);
+    this.opponentDialogueText = this.add.text(PORTRAIT_W + 24, 62, '', {
+      fontFamily: FONT_BOLD, fontSize: '12px', color: '#ffffff', lineSpacing: 4,
+      wordWrap: { width: 480 },
     }).setScale(2);
 
-    this.drawPortraitBox(0, 700 - BOTTOM_H, PORTRAIT_W, BOTTOM_H, 0xc9dce0, 0x1a3a52);
+    this.drawPortraitBox(0, 700 - BOTTOM_H, PORTRAIT_W, BOTTOM_H, 0x2a1f14, 0xb8860b, 'portraitPlayer');
     this.drawDialogueBox(PORTRAIT_W + 10, 700 - BOTTOM_H + 10, 1200 - PORTRAIT_W - 24, BOTTOM_H - 20);
-    this.playerDialogueText = this.add.text(PORTRAIT_W + 24, 700 - BOTTOM_H + 22, '', {
-      fontFamily: FONT, fontSize: '12px', color: '#2b2620', lineSpacing: 4,
-      wordWrap: { width: 260 },
+    this.add.text(PORTRAIT_W + 24, 700 - BOTTOM_H + 14, `[${this.playerDisplayName}]`, {
+      fontFamily: FONT_BOLD, fontSize: '13px', color: '#e8c86a',
+    }).setScale(2);
+    this.playerDialogueText = this.add.text(PORTRAIT_W + 24, 700 - BOTTOM_H + 62, '', {
+      fontFamily: FONT_BOLD, fontSize: '12px', color: '#ffffff', lineSpacing: 4,
+      wordWrap: { width: 480 },
     }).setScale(2);
 
     this.dynamicLayer = this.add.container(0, 0);
@@ -205,15 +234,15 @@ class DaVinciCodeScene extends Phaser.Scene {
     // 대화창 모서리에 붙는 SKILL 버튼용 설명 팝업. 매치 내내 내용이 바뀌지
     // 않으므로 한 번만 만들어두고 hover로 보이기/숨기기만 한다.
     const oppLines = this.skillInfo
-      ? `${this.botName}\n소지품: ${this.skillInfo.item}\n능력: ${this.skillInfo.skill}\n${this.skillInfo.description}`
-      : `${this.botName}\n특별한 소지품이 없습니다.`;
-    this.oppInfoPopup = this.makeInfoPopup(480, 300, TOP_H + 8, oppLines, false);
+      ? `${this.botDisplayName}\n소지품: ${this.skillInfo.item}\n능력: ${this.skillInfo.skill}\n${this.skillInfo.description}`
+      : `${this.botDisplayName}\n특별한 소지품이 없습니다.`;
+    this.oppInfoPopup = this.makeInfoPopup(480, 450, TOP_H + 8, oppLines, false);
     this.oppInfoPopup.setVisible(false);
 
     const mySkillLines = unlocked.length
       ? unlocked.map((k) => `${ITEM_SKILLS[k].skill}: ${ITEM_SKILLS[k].description}`).join('\n\n')
       : '보유한 능력이 없습니다.';
-    this.mySkillsPopup = this.makeInfoPopup(460, 320, 700 - BOTTOM_H - 8, mySkillLines, true);
+    this.mySkillsPopup = this.makeInfoPopup(460, 470, 700 - BOTTOM_H - 8, mySkillLines, true);
     this.mySkillsPopup.setVisible(false);
 
     this.human = new Player('나');
@@ -281,13 +310,13 @@ class DaVinciCodeScene extends Phaser.Scene {
 
     // '수사 시작' 배너 -> 주인공 대사 한 번 -> 상대 대사 한 번(둘 다 한 글자씩
     // 타이핑되는 연출) -> '선공 결정' 배너 -> 코인토스, 순서로 진행한다.
-    this.showBanner('수사 시작', `vs ${this.botName}`);
+    this.showBanner('수사 시작', `vs ${this.botDisplayName}`);
     this.time.delayedCall(2300, () => {
       this.typewriterText(this.playerDialogueText, '반드시 당신의 정체를 밝혀내겠어.', () => {
         this.time.delayedCall(900, () => {
           this.typewriterText(
             this.opponentDialogueText,
-            this.flavor.start || `${this.botName}과(와)의 대전이 시작됩니다.`,
+            this.flavor.start || `${this.botDisplayName}과(와)의 대전이 시작됩니다.`,
             () => {
               this.time.delayedCall(900, () => {
                 this.showBanner('선공 결정');
@@ -314,7 +343,7 @@ class DaVinciCodeScene extends Phaser.Scene {
     this.coinContainer = this.add.container(startX, groundY, [this.coinSprite]);
 
     const startingPlayer = Math.random() < 0.5 ? 0 : 1;
-    const winnerLabel = startingPlayer === 0 ? '나' : this.botName;
+    const winnerLabel = startingPlayer === 0 ? this.playerDisplayName : this.botDisplayName;
 
     const baseScaleX = this.coinSprite.scaleX;
     let showHuman = true;
@@ -507,7 +536,7 @@ class DaVinciCodeScene extends Phaser.Scene {
       if (!unlocked.has(skillKey)) {
         unlocked.add(skillKey);
         this.registry.set('unlockedSkills', Array.from(unlocked));
-        this.setPlayerLine(`승리! ${this.botName}의 소지품 [${this.skillInfo.item}]과 능력 '${this.skillInfo.skill}'을(를) 손에 넣었다.`);
+        this.setPlayerLine(`승리! ${this.botDisplayName}의 소지품 [${this.skillInfo.item}]과 능력 '${this.skillInfo.skill}'을(를) 손에 넣었다.`);
       } else {
         this.setPlayerLine('승리! 사건의 단서를 얻었다.');
       }
@@ -717,9 +746,11 @@ class DaVinciCodeScene extends Phaser.Scene {
     g.strokeRect(-w / 2 + 8, -h / 2 + 8, w - 16, h - 16);
 
     const children = [g];
+    // Galmuri는 도트 폰트라 fontSize를 직접 24px로 그리면 한글 자모가 깨진다 -
+    // 작게(12px) 그린 뒤 통째로 확대(setScale)한다.
     const mainLabel = this.add.text(0, subText ? -14 : 0, mainText, {
-      fontFamily: FONT_BOLD, fontSize: '24px', color: '#f5e9c8',
-    }).setOrigin(0.5);
+      fontFamily: FONT_BOLD, fontSize: '12px', color: '#f5e9c8',
+    }).setOrigin(0.5).setScale(2);
     children.push(mainLabel);
     if (subText) {
       const subLabel = this.add.text(0, 22, subText, { fontFamily: FONT, fontSize: '12px', color: '#cbb98a' }).setOrigin(0.5);
@@ -1311,13 +1342,16 @@ class DaVinciCodeScene extends Phaser.Scene {
     // 대화창 모서리의 SKILL 버튼. 위(상대) 버튼은 상대 소지품 설명 팝업을,
     // 아래(내) 버튼은 지금 당장 쓸 수 있는 능력(엿보기)이 있으면 클릭으로 바로
     // 발동, 아니면 내가 보유한 능력 설명 팝업을 보여준다.
-    const oppBtnX = PORTRAIT_W + 10 + (1200 - PORTRAIT_W - 24) - 70;
-    this.dynamicLayer.add(this.makeSmallSkillButton(oppBtnX, 18, 60, 26, false, null, this.oppInfoPopup));
+    const btnW = 90;
+    const btnH = 36;
+    const btnLeftShift = 150; // 대화창 오른쪽 끝에 딱 붙어있던 걸 왼쪽으로 옮긴다.
+    const oppBtnX = PORTRAIT_W + 10 + (1200 - PORTRAIT_W - 24) - btnW - btnLeftShift;
+    this.dynamicLayer.add(this.makeSmallSkillButton(oppBtnX, 18, btnW, btnH, false, null, this.oppInfoPopup));
 
     const lanternUsableNow = this.mode === 'pick_slot' && this.humanStrategy.hasSkill('lantern') && !this.insightPickActive;
-    const myBtnX = PORTRAIT_W + 10 + (1200 - PORTRAIT_W - 24) - 70;
+    const myBtnX = PORTRAIT_W + 10 + (1200 - PORTRAIT_W - 24) - btnW - btnLeftShift;
     const myBtnY = 700 - BOTTOM_H + 18;
-    this.dynamicLayer.add(this.makeSmallSkillButton(myBtnX, myBtnY, 60, 26, lanternUsableNow, lanternUsableNow ? () => {
+    this.dynamicLayer.add(this.makeSmallSkillButton(myBtnX, myBtnY, btnW, btnH, lanternUsableNow, lanternUsableNow ? () => {
       this.insightPickActive = true;
       this.setPlayerLine('엿볼 상대 블록을 클릭하세요.');
       this.mySkillsPopup.setVisible(false);
@@ -1325,21 +1359,21 @@ class DaVinciCodeScene extends Phaser.Scene {
     } : null, this.mySkillsPopup));
 
     // SKILL 버튼 바로 아래의 메뉴 버튼 - 누르면 '나가기' 버튼이 펼쳐진다.
-    const menuBtnY = myBtnY + 26 + 8;
-    this.dynamicLayer.add(this.makeSmallSkillButton(myBtnX, menuBtnY, 60, 26, false, () => {
+    const menuBtnY = myBtnY + btnH + 8;
+    this.dynamicLayer.add(this.makeSmallSkillButton(myBtnX, menuBtnY, btnW, btnH, false, () => {
       this.menuOpen = !this.menuOpen;
       this.render();
     }, null, '메뉴'));
 
     if (this.menuOpen) {
-      this.dynamicLayer.add(this.makeSmallSkillButton(myBtnX - 78, menuBtnY, 70, 26, true, () => {
+      this.dynamicLayer.add(this.makeSmallSkillButton(myBtnX - btnW - 8, menuBtnY, btnW, btnH, true, () => {
         this.bgmDavinci.stop();
         this.scale.resize(960, 540);
         this.scene.start('MapScene', {
           mapKey: this.returnMapKey, returnX: this.returnX, returnY: this.returnY,
         });
       }, null, '나가기'));
-      this.dynamicLayer.add(this.makeSmallSkillButton(myBtnX - 78 - 78, menuBtnY, 70, 26, false, () => {
+      this.dynamicLayer.add(this.makeSmallSkillButton(myBtnX - (btnW + 8) * 2, menuBtnY, btnW, btnH, false, () => {
         this.rulesOpen = true;
         this.render();
       }, null, '규칙'));
@@ -1628,11 +1662,13 @@ class DaVinciCodeScene extends Phaser.Scene {
     const g = this.add.graphics();
     g.fillStyle(0x000000, 0.3);
     g.fillRect(x + 2, y + 2, w, h);
-    g.fillStyle(highlight ? 0xd98c3a : 0x33414a, 1);
+    g.fillStyle(highlight ? 0xb8860b : 0x1a1410, 1);
     g.fillRect(x, y, w, h);
-    g.lineStyle(2, 0x1a1a1a, 1);
+    g.lineStyle(2, 0xe8c86a, 1);
     g.strokeRect(x, y, w, h);
-    const text = this.add.text(x + w / 2, y + h / 2, label, { fontFamily: FONT, fontSize: '9px', color: '#ffffff' }).setOrigin(0.5);
+    // 도트 폰트라 fontSize를 13px로 바로 그리면 "메뉴"/"나가기"/"규칙" 같은 한글이
+    // 깨져 보인다 - 작게(9px) 그린 뒤 확대(setScale)한다.
+    const text = this.add.text(x + w / 2, y + h / 2, label, { fontFamily: FONT, fontSize: '9px', color: '#f2e6cf' }).setOrigin(0.5).setScale(1.5);
     const children = [g, text];
     const hitZone = this.add.zone(x, y, w, h).setOrigin(0, 0).setInteractive({ useHandCursor: onClick != null });
     if (onClick) hitZone.on('pointerdown', onClick);
@@ -1648,10 +1684,16 @@ class DaVinciCodeScene extends Phaser.Scene {
   // growUp이 true면 anchorY를 '아래쪽 기준점'으로 보고 위로 자라난다,
   // 아니면 anchorY를 '위쪽 기준점'으로 보고 아래로 자라난다.
   makeInfoPopup(x, w, anchorY, text, growUp) {
-    const t = this.add.text(0, 0, text, { fontFamily: FONT, fontSize: '10px', color: '#e8e2c8', lineSpacing: 6, wordWrap: { width: w - 24 } });
-    const h = t.height + 24;
+    // Galmuri는 도트 폰트라 fontSize를 바로 키우면 한글 자모가 깨진다 - 원래 크기(10px)로
+    // 그린 뒤 통째로 확대(setScale)해서 더 크게 보이게 한다(대화창 텍스트와 같은 방식).
+    const POPUP_TEXT_SCALE = 1.5;
+    const t = this.add.text(0, 0, text, {
+      fontFamily: FONT, fontSize: '10px', color: '#e8e2c8', lineSpacing: 6,
+      wordWrap: { width: (w - 32) / POPUP_TEXT_SCALE },
+    }).setScale(POPUP_TEXT_SCALE);
+    const h = t.displayHeight + 32;
     const topY = growUp ? anchorY - h : anchorY;
-    t.setPosition(x + 12, topY + 12);
+    t.setPosition(x + 16, topY + 16);
 
     const g = this.add.graphics();
     g.fillStyle(0x000000, 0.35);
@@ -1700,8 +1742,8 @@ class DaVinciCodeScene extends Phaser.Scene {
     g.setDepth(1501);
 
     const title = this.add.text(boxX + boxW / 2, boxY + 26, '게임 규칙', {
-      fontFamily: FONT_BOLD, fontSize: '18px', color: '#e8c86a',
-    }).setOrigin(0.5).setDepth(1501);
+      fontFamily: FONT_BOLD, fontSize: '9px', color: '#e8c86a',
+    }).setOrigin(0.5).setScale(2).setDepth(1501);
 
     const rulesText = [
       '0~11 숫자가 적힌 흑/백 블록 24개로 1:1 대결합니다.',
@@ -1754,11 +1796,82 @@ class DaVinciCodeScene extends Phaser.Scene {
     this._rulesPopupObjects = [backdrop, dim, g, title, body, closeG, closeText, closeZone];
   }
 
-  // 상단/하단의 '캐릭터 초상' 자리 - 진짜 아트가 없으므로 격자 실루엣을 픽셀 단위로 채운다.
-  drawPortraitBox(x, y, w, h, bgColor, silColor) {
+  // 이미지 배경을 자동으로 투명하게 만든다. 배경색을 검정으로 단정하지 않고
+  // 좌상단 모서리 픽셀 색을 "배경색"으로 샘플링한 뒤, 가장자리 네 변에서 시작해서
+  // 그 색과 비슷하게 이어진 픽셀만 flood fill로 투명 처리한다(흰 배경/검은 배경 등
+  // 어떤 색이든 대응) - 캐릭터 안쪽의 비슷한 색(예: 흰 셔츠)은 배경이랑 안 이어져
+  // 있으니 안 지워진다. 상대/내 초상화를 새로 추가할 때마다 매번 수동으로 배경을
+  // 안 지워도 되게 하기 위한 자동 처리.
+  makeBackgroundTransparent(key, threshold = 32) {
+    if (!this.textures.exists(key)) return;
+    const src = this.textures.get(key).getSourceImage();
+    const w = src.width;
+    const h = src.height;
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(src, 0, 0);
+
+    const imageData = ctx.getImageData(0, 0, w, h);
+    const data = imageData.data;
+    const bgR = data[0];
+    const bgG = data[1];
+    const bgB = data[2];
+    const isBg = (idx) => Math.abs(data[idx] - bgR) <= threshold
+      && Math.abs(data[idx + 1] - bgG) <= threshold
+      && Math.abs(data[idx + 2] - bgB) <= threshold;
+    const visited = new Uint8Array(w * h);
+    const stack = [];
+    const pushIfBg = (x, y) => {
+      if (x < 0 || y < 0 || x >= w || y >= h) return;
+      const p = y * w + x;
+      if (visited[p]) return;
+      if (!isBg(p * 4)) return;
+      visited[p] = 1;
+      stack.push(p);
+    };
+    for (let x = 0; x < w; x++) { pushIfBg(x, 0); pushIfBg(x, h - 1); }
+    for (let y = 0; y < h; y++) { pushIfBg(0, y); pushIfBg(w - 1, y); }
+    while (stack.length) {
+      const p = stack.pop();
+      const x = p % w;
+      const y = (p / w) | 0;
+      data[p * 4 + 3] = 0;
+      pushIfBg(x + 1, y);
+      pushIfBg(x - 1, y);
+      pushIfBg(x, y + 1);
+      pushIfBg(x, y - 1);
+    }
+    ctx.putImageData(imageData, 0, 0);
+
+    // 같은 키로 다시 등록해서(텍스처 삭제 후 재등록) 이 함수를 부른 뒤에는 기존 코드가
+    // 그 키를 그대로 계속 쓰면 된다.
+    this.textures.remove(key);
+    this.textures.addCanvas(key, canvas);
+  }
+
+  // 상단/하단의 '캐릭터 초상' 자리. imageKey가 있고 로드돼 있으면 그 그림을 박스
+  // 안에 왜곡 없이(contain) 꽉 차게 넣고, 없으면 진짜 아트가 없다는 뜻이므로 격자
+  // 실루엣을 픽셀 단위로 채운 placeholder를 대신 보여준다.
+  drawPortraitBox(x, y, w, h, bgColor, silColor, imageKey = null) {
     const g = this.add.graphics();
     g.fillStyle(bgColor, 1);
     g.fillRect(x, y, w, h);
+
+    if (imageKey && this.textures.exists(imageKey)) {
+      const src = this.textures.get(imageKey).getSourceImage();
+      const scale = Math.max(w / src.width, h / src.height);
+      const img = this.add.image(x + w / 2, y + h / 2, imageKey).setScale(scale);
+      // 박스 밖으로 삐져나온 부분은 잘라낸다.
+      img.setCrop(
+        (src.width - w / scale) / 2,
+        (src.height - h / scale) / 2,
+        w / scale,
+        h / scale,
+      );
+      return;
+    }
 
     const cols = SUSPECT_SILHOUETTE[0].length;
     const rows = SUSPECT_SILHOUETTE.length;
@@ -1776,14 +1889,17 @@ class DaVinciCodeScene extends Phaser.Scene {
     });
   }
 
-  // 대화창 - 종이 색 바탕에 굵은 테두리, 안쪽에 얇은 라인을 하나 더 둘러서
-  // 도트 게임 대화창 특유의 이중 테두리 느낌을 낸다.
+  // 대화창 - 나머지 UI(배너/버튼/팝업 등)와 같은 어두운 가죽/원목 톤 + 금색 테두리로
+  // 통일한다(예전엔 밝은 종이색이라 원목 배경/매트랑 안 어울리고 튀어 보였다).
+  // 안쪽에 얇은 금색 라인을 하나 더 둘러서 이중 테두리 느낌을 낸다.
   drawDialogueBox(x, y, w, h) {
     const g = this.add.graphics();
-    g.fillStyle(0xf5f0e0, 1);
+    g.fillStyle(0x1a1410, 0.96);
     g.fillRect(x, y, w, h);
-    g.lineStyle(1, 0xc9bfa0, 1);
-    g.strokeRect(x + 5, y + 5, w - 10, h - 10);
+    g.lineStyle(3, 0xe8c86a, 1);
+    g.strokeRect(x, y, w, h);
+    g.lineStyle(1, 0xb8860b, 0.7);
+    g.strokeRect(x + 6, y + 6, w - 12, h - 12);
   }
 
   // ---- 배경 연출 (원목 테이블 위에 초록 카드 매트를 펼쳐놓은 느낌) ----

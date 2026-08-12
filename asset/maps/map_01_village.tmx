@@ -228,7 +228,7 @@
  <imagelayer id="10" name="Background_Image">
   <image source="../backgrounds/map_01_village_bg.png" width="3072" height="2240"/>
  </imagelayer>
- <objectgroup id="4" name="Portals">
+ <objectgroup id="4" name="Portals" visible="0">
   <object id="1" name="To_Forest" x="1923.39" y="64.7275" width="90.909" height="51.697">
    <properties>
     <property name="target_map" value="map_02_forest.tmx"/>
@@ -281,7 +281,7 @@
    <point/>
   </object>
  </objectgroup>
- <objectgroup id="6" name="walkdisable" visible="0">
+ <objectgroup id="6" name="walkdisable">
   <object id="19" x="787.879" y="1321.21" width="163.636" height="42.4242"/>
   <object id="20" x="766.667" y="1430.3" width="48.4848" height="109.091"/>
   <object id="21" x="809.091" y="1578.79" width="154.545" height="42.4242"/>
@@ -310,12 +310,12 @@
    <point/>
   </object>
  </objectgroup>
- <objectgroup id="8" name="saint_path" visible="0">
+ <objectgroup id="8" name="saint_path">
   <object id="54" x="1006.06" y="1530.3">
    <polyline points="0,0 3.0303,109.091 745.455,106.061 742.424,178.788 900,178.788"/>
   </object>
  </objectgroup>
- <objectgroup id="10" name="saint_flee_path" visible="0">
+ <objectgroup id="10" name="saint_flee_path">
   <object id="55" x="1918.18" y="1615.15">
    <polyline points="0,0 -384.848,-3.0303 -381.818,-360.606 -915.152,-354.545 -906.061,-130.303"/>
   </object>

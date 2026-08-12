@@ -86,7 +86,7 @@ class SuspectVNScene extends Phaser.Scene {
 
     // 대화창. 마을 대화창이랑 같은 가죽/청동 톤으로 화면 하단에 띄운다.
     const boxW = cam.width - 80;
-    const boxH = 150;
+    const boxH = 190;
     const boxX = 40;
     const boxY = cam.height - boxH - 20;
     const box = this.add.graphics();
@@ -98,8 +98,11 @@ class SuspectVNScene extends Phaser.Scene {
     this.nameText = this.add.text(boxX + 20, boxY + 14, this.npcName, {
       fontSize: '16px', fill: '#e8b34d', fontStyle: 'bold',
     });
-    this.lineText = this.add.text(boxX + 20, boxY + 42, '', {
-      fontSize: '15px', fill: '#f2e6cf', wordWrap: { width: boxW - 40 },
+    this.lineText = this.add.text(boxX + 20, boxY + 62, '', {
+      // 폰트 크기를 키우면서 글자 위쪽(특히 'ㅇ'/'ㄱ' 등 자모 윗부분)이 텍스트 객체
+      // 경계에 살짝 잘려 보이는 문제가 있어서, 위쪽에 여유 패딩을 준다.
+      fontSize: '20px', fill: '#f2e6cf', wordWrap: { width: boxW - 40 },
+      padding: { top: 6, bottom: 4 },
     });
     this.hintText = this.add.text(boxX + boxW - 20, boxY + boxH - 22, '[SPACE] 다음', {
       fontSize: '12px', fill: '#cbb994',
