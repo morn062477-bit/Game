@@ -128,7 +128,8 @@ function resumeStoryFromSave() {
   } else if (phase === 'farmer_escape') {
     mapScene.scene.restart({ mapKey: 'map_02_forest', storyEvent: 'forestDiscovery' });
   } else if (phase === 'hidden_forest') {
-    mapScene.scene.restart({ mapKey: 'map_02_forest' });
+    // 랜턴 수리 직후 저장된 경우에도 숲 입구 걷기 컷신부터 정확히 복구한다.
+    mapScene.scene.restart({ mapKey: 'map_02_forest', storyEvent: 'walkToHiddenForest' });
   } else if (phase === 'confession') {
     mapScene.scene.start('EndingStoryScene', { route: 'bodyConfession' });
   } else if (phase === 'ending' && save.ending) {

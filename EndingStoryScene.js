@@ -114,6 +114,7 @@ class EndingStoryScene extends Phaser.Scene {
     this.load.image('ending-bad', `asset/endings/bad-ending.png?v=${v}`);
     this.load.image('ending-normal', `asset/endings/normal-ending.png?v=${v}`);
     this.load.image('ending-true', `asset/endings/true-ending.png?v=${v}`);
+    this.load.image('farmer-confession', `asset/endings/farmer-confession.png?v=${v}`);
   }
 
   create() {
@@ -123,6 +124,10 @@ class EndingStoryScene extends Phaser.Scene {
     this.index = 0;
     this.finished = false;
     this.add.rectangle(480, 270, 960, 540, 0x080706);
+    if (this.route === 'bodyConfession' && this.textures.exists('farmer-confession')) {
+      const sceneImage = this.add.image(480, 270, 'farmer-confession').setOrigin(0.5);
+      sceneImage.setScale(Math.max(960 / sceneImage.width, 540 / sceneImage.height));
+    }
     this.add.rectangle(480, 430, 920, 185, 0x14100d, 0.98).setStrokeStyle(2, 0x9d7442);
     this.nameText = this.add.text(55, 358, '', { fontFamily: 'Galmuri11, sans-serif', fontSize: '19px', color: '#e9c77b' });
     this.bodyText = this.add.text(55, 397, '', {

@@ -716,9 +716,8 @@ class MapScene extends Phaser.Scene {
     if (this.currentMapKey === 'map_02_forest' && this.storyEvent === 'walkToHiddenForest') {
       this.time.delayedCall(350, () => this.playHiddenForestWalkCutscene());
     }
-    if (this.currentMapKey === 'map_08_body' && story?.phase === 'hidden_forest' && story.bodyFound === false) {
-      this.time.delayedCall(450, () => this.scene.start('EndingStoryScene', { route: 'bodyConfession' }));
-    }
+    // 시체 맵에서는 자백을 자동 시작하지 않는다. 현장의 농부에게 직접 말을 걸면
+    // 첨부된 농부 장면과 자백 대사가 열린다.
     // 8. 오프닝 컷씬. 맨 처음 마을에 들어왔을 때(포탈을 타고 온 게 아니라 게임을 막 시작했을
     // 때)만 한 번 재생한다.
     if (this.currentMapKey === 'map_01_village' && !this.fromMapKey && !hasPlayedIntro
@@ -1066,6 +1065,7 @@ class MapScene extends Phaser.Scene {
       this.interactText.setText(`[SPACE] ${npcData.name}와 대화하기`).setVisible(true);
 
       if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
+        if (this.startBodyConfessionIfAvailable(npcData)) return;
         // 용의자(다빈치코드 대전 상대로 매핑된 NPC)는 미연시풍 배경+일러스트 화면으로,
         // 그 외 일반 NPC는 지금까지의 하단 대화창으로 처리한다.
         if (NPC_TO_BOT_NAME[npcData.id]) {
@@ -1080,6 +1080,14 @@ class MapScene extends Phaser.Scene {
     } else {
       this.interactText.setText('').setVisible(false);
     }
+  }
+
+  startBodyConfessionIfAvailable(npcData) {
+    if (this.currentMapKey !== 'map_08_body' || npcData?.id !== 'farmer') return false;
+    const story = window.GameSave?.state?.data?.story;
+    if (!story || story.bodyFound !== false) return true;
+    this.scene.start('EndingStoryScene', { route: 'bodyConfession' });
+    return true;
   }
 
   // =============================================
