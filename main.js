@@ -10,7 +10,7 @@ const config = {
     default: 'arcade',         // arcade = 간단한 2D 물리
     arcade: {
       gravity: { y: 0 },      // 탑다운 게임이라 중력 없음
-      debug: false             // true로 바꾸면 충돌 영역이 보임 (개발 중에만 켜서 쓰기)
+      debug: false            // true로 바꾸면 충돌 영역이 보임 (개발 중에만 켜서 쓰기)
     }
   },
 
@@ -18,7 +18,7 @@ const config = {
   // 일러스트+대사)으로 넘어가고, 대사가 끝나면 DaVinciCodeScene(다빈치코드 미니게임)으로
   // 이어진다. 대전에서 이기면 SuspectChoiceScene(심문 선택지 화면)으로, 지면 바로
   // 마을로 돌아간다.
-  scene: [MapScene, SuspectVNScene, DaVinciCodeScene, SuspectChoiceScene]
+  scene: [MapScene, SuspectVNScene, DaVinciCodeScene, SuspectChoiceScene, FinalDeductionScene, EndingStoryScene]
 };
 
 // =============================================
@@ -112,9 +112,34 @@ function skipPrologueAndStart() {
   });
 }
 
+function resumeStoryFromSave() {
+  const save = window.GameSave?.state?.data;
+  const mapScene = game?.scene.getScene('MapScene');
+  if (!save || !mapScene) return;
+  const phase = save.story?.phase;
+  if (phase === 'final_gather') {
+    if (save.story.finalGatherPlayed === false) {
+      mapScene.scene.restart({ mapKey: 'map_01_village', endingGather: true });
+    } else {
+      mapScene.scene.start('FinalDeductionScene');
+    }
+  } else if (phase === 'final_deduction') {
+    mapScene.scene.start('FinalDeductionScene');
+  } else if (phase === 'farmer_escape') {
+    mapScene.scene.restart({ mapKey: 'map_02_forest', storyEvent: 'forestDiscovery' });
+  } else if (phase === 'hidden_forest') {
+    mapScene.scene.restart({ mapKey: 'map_02_forest' });
+  } else if (phase === 'confession') {
+    mapScene.scene.start('EndingStoryScene', { route: 'bodyConfession' });
+  } else if (phase === 'ending' && save.ending) {
+    mapScene.scene.start('EndingStoryScene', { route: save.ending });
+  }
+}
+
 window.startGame = startGame;
 window.playPrologueBeforeAuth = playPrologueBeforeAuth;
 window.skipPrologueAndStart = skipPrologueAndStart;
+window.resumeStoryFromSave = resumeStoryFromSave;
 
 // 브라우저 오디오 자동재생 잠금 해제는 이제 별도의 "클릭하여 시작" 화면 대신, 로그인/
 // 이어하기 화면 위에서 첫 클릭이 일어나는 순간 처리한다(systems/auth-ui.js의
