@@ -87,7 +87,7 @@ const NPC_DISPLAY_NAME = {
   saint: '수녀',
   docter: '의사',
   boy: '소년',
-  girl: '소녀',
+  girl: '낚시꾼',
   farmer_baby: '농부의 딸',
   farmer: '농부',
   hunter: '사냥꾼',
@@ -97,6 +97,7 @@ const NPC_DISPLAY_NAME = {
   wife: '이장 부인',
   village_woman1: '잡화점 주인',
   village_woman2: '마을 주민',
+  body: '시체'
 };
 
 // npc id -> 대화창 초상화용 일러스트 텍스처 키(preload에서 "dialogue-ill-*"로 로드해둔 것).
@@ -214,6 +215,9 @@ class MapScene extends Phaser.Scene {
     this.load.spritesheet('npc-fisher', `asset/characters/용의자들-fisher/fisher.png?v=${v}`, npcFrame);
     this.load.spritesheet('npc-captain', `asset/characters/용의자들-NPC/captain.png?v=${v}`, npcFrame);
     this.load.spritesheet('npc-wife', `asset/characters/용의자들-wife/wife.png?v=${v}`, npcFrame);
+    // 시체 발견 장소(map_08_body)에 놓인 시체. 걸어다니는 캐릭터가 아니라 누워있는
+    // 정지 그림 한 장(가로로 긴 1536x1024)이라 스프라이트시트가 아니라 일반 이미지로 불러온다.
+    this.load.image('npc-body', `asset/characters/용의자들-NPC/body.png?v=${v}`);
 
     // 일반 NPC 대화창 초상화용 일러스트(걷기 스프라이트와 별도). "탐정" 질문 줄에도
     // 전용 일러스트가 있어서 그걸 쓰고, 일러스트가 없는 id는 기존처럼 걷기 스프라이트로
@@ -432,12 +436,26 @@ class MapScene extends Phaser.Scene {
         // 원래 맵으로 튕겨나가고, walkable을 무시하면 캐릭터가 못 움직이게 갇힌다.)
         // 보트는 캐릭터보다 충돌 판정 몸통이 훨씬 커서(가로 폭 절반이 70px 넘음),
         // 20px짜리 여유로는 중심점만 포탈 밖으로 나가고 실제 몸통은 여전히 겹쳐서
-        // 도착하자마자 다시 되돌아가버렸다. water 맵(보트)일 땐 여유를 넉넉히 준다.
-        const margin = this.currentMapKey === 'map_06_water' ? 100 : 20;
+        // 도착하자마자 다시 되돌아가버렸다. 걷는 캐릭터도 마찬가지 문제가 있다 -
+        // 충돌 바디가 스프라이트 발밑에 크게 아래로 치우쳐 있어서(setOffset 참고),
+        // 후보 지점이 스프라이트 기준으로는 포탈 밖이어도 실제 발(바디) 위치는
+        // 포탈 안에 걸쳐 있을 수 있다(예: 포탈 바로 위쪽 후보가 걸림). 그래서 걷는
+        // 캐릭터도 여유를 넉넉히 준다.
+        const margin = 100;
         const rx0 = returnPortal.x - margin, ry0 = returnPortal.y - margin;
         const rx1 = returnPortal.x + (returnPortal.width || 0) + margin;
         const ry1 = returnPortal.y + (returnPortal.height || 0) + margin;
         const baseRadius = Math.max(returnPortal.width || 0, returnPortal.height || 0) / 2 + 30;
+        // update()의 walkable 체크는 스프라이트 위치가 아니라 충돌 바디의 발끝(맨 아래)
+        // 좌표로 한다. 몸 전체(player 스프라이트)는 발밑 좁은 영역만 바디로 쓰고 그 바디가
+        // 스프라이트보다 한참 아래로 치우쳐 있어서(setOffset 참고), 스프라이트 기준으로는
+        // walkable해 보이는 후보도 실제 발 위치는 walkable 밖일 수 있다 - 그러면 도착하자마자
+        // update()가 매 프레임 위치를 되돌려서 캐릭터가 그 자리에 그대로 멈춰버린다. 그래서
+        // 후보를 검사할 때도 발이 놓일 대략적인 위치(스프라이트 기준 y + 아래쪽 오프셋)로
+        // walkable 여부를 확인한다.
+        const isInteriorTarget = this.currentMapKey === 'map_08_body' || this.currentMapKey === 'map_07_inter';
+        const isBoatTarget = this.currentMapKey === 'map_06_water';
+        const feetYOffset = isBoatTarget ? 40 : (isInteriorTarget ? 90 : 75);
         outer:
         for (const radius of [baseRadius, baseRadius + 40, baseRadius + 80, baseRadius + 140, baseRadius + 220, baseRadius + 320]) {
           for (const angleDeg of [90, 270, 0, 180, 45, 135, 225, 315]) {
@@ -453,6 +471,7 @@ class MapScene extends Phaser.Scene {
               || candidate.y < boundsMargin || candidate.y > map.heightInPixels - boundsMargin;
             if (outOfBounds) continue;
             if (!this.isWalkable(candidate.x, candidate.y)) continue;
+            if (!this.isWalkable(candidate.x, candidate.y + feetYOffset)) continue;
             startPoint = candidate;
             break outer;
           }
@@ -691,10 +710,24 @@ class MapScene extends Phaser.Scene {
       farmer: 'npc-farmer', hunter: 'npc-hunter', painter: 'npc-painter', fisher: 'npc-fisher',
       captain: 'npc-captain', wife: 'npc-wife',
       village_woman1: 'npc-villager_woman', village_woman2: 'npc-villager_woman',
+      body: 'npc-body',
     };
+    // "body"는 걷는 캐릭터가 아니라 누워있는 정지 그림 한 장이라(가로로 긴 1536x1024),
+    // 걷기 스프라이트용 크기 보정/애니메이션 대상에서 빼고 따로 취급한다.
+    const STATIC_IMAGE_NPC_IDS = new Set(['body']);
     const isInteriorMap = this.currentMapKey === 'map_08_body' || this.currentMapKey === 'map_07_inter';
     const npcScale = isInteriorMap ? 0.58 : 0.48;
     const palette = [0xff6666, 0x66ff66, 0xffff66, 0x66ffff, 0xff66ff, 0xffa500, 0xaa88ff];
+
+    // wife는 표준 프레임(204x384)이라 npcScale이 곧 실제 크기다. 다른 그림들은 원본
+    // 프레임 세로 크기가 제각각이라(예: doctor 313px, farmer_baby 313px, saint 350px)
+    // 같은 npcScale을 곱해도 화면상 키가 서로 달라 보인다 - wife 프레임 높이(384) 기준으로
+    // 배율을 보정해서 다들 wife와 같은 화면 크기로 보이게 맞춘다.
+    const WIFE_FRAME_H = 384;
+    const npcFrameHeightByTexKey = {
+      'npc-saint': 350, 'npc-boy': 350, 'npc-doctor': 313, 'npc-farmer_baby': 313,
+      'npc-villager_woman': 313, 'npc-farmer': 384,
+    };
 
     const npcObjects = map.getObjectLayer('npc')?.objects || [];
     npcObjects.forEach((obj, i) => {
@@ -703,17 +736,36 @@ class MapScene extends Phaser.Scene {
       const texKey = npcTextureKeys[obj.name];
 
       let npc;
-      if (texKey && this.textures.exists(texKey)) {
-        npc = this.add.sprite(obj.x, obj.y, texKey, 0).setScale(npcScale);
+      let isSpriteNpc = false;
+      if (texKey && this.textures.exists(texKey) && STATIC_IMAGE_NPC_IDS.has(obj.name)) {
+        // 걷기 스프라이트가 아니라 정지 그림이라 애니메이션도 없고, 크기도 캐릭터
+        // 스케일(npcScale)이 아니라 화면에 자연스러운 폭(약 200px)에 맞춘 별도 배율을 쓴다.
+        const targetWidth = 200;
+        npc = this.add.image(obj.x, obj.y, texKey).setScale(targetWidth / this.textures.get(texKey).getSourceImage().width);
+      } else if (texKey && this.textures.exists(texKey)) {
+        const frameH = npcFrameHeightByTexKey[texKey] || WIFE_FRAME_H;
+        const sizeAdjust = WIFE_FRAME_H / frameH;
+        npc = this.add.sprite(obj.x, obj.y, texKey, 0).setScale(npcScale * sizeAdjust);
         this.ensureNpcAnims(texKey, texKey === 'npc-farmer' ? 4 : 5);
+        isSpriteNpc = true;
       } else {
         npc = this.add.rectangle(obj.x, obj.y, 28, 28, palette[i % palette.length]);
       }
       this.physics.add.existing(npc, true);
+      if (isSpriteNpc) {
+        // 기본은 스프라이트 전신 크기 그대로 충돌 박스가 잡혀서 너무 커진다 -
+        // 보트(충돌 판정이 훨씬 큼)를 탄 상태로는 NPC 근처에 몸이 닿기도 전에
+        // 막혀버려서 상호작용 거리(140px) 안으로 들어오지 못하는 문제가 있었다.
+        // 발밑 좁은 영역만 막히게 줄인다.
+        const bodyW = npc.width * 0.4;
+        const bodyH = npc.height * 0.2;
+        npc.body.setSize(bodyW, bodyH);
+        npc.body.setOffset((npc.width - bodyW) / 2, npc.height - bodyH);
+      }
       this.npcGroup.add(npc);
 
       const label = this.add.text(obj.x, obj.y - npc.displayHeight / 2 - 8, data.name, {
-        fontSize: '12px', fill: '#ffffff'
+        fontSize: '30px', fill: '#ffffff'
       }).setOrigin(0.5);
 
       this.npcDataMap.set(npc, data);
