@@ -1133,10 +1133,12 @@ class MapScene extends Phaser.Scene {
         // 용의자(다빈치코드 대전 상대로 매핑된 NPC)는 미연시풍 배경+일러스트 화면으로,
         // 그 외 일반 NPC는 지금까지의 하단 대화창으로 처리한다.
         if (NPC_TO_BOT_NAME[npcData.id]) {
-          // 이미 이 용의자를 이겨서 질문을 하나 확정지은 적이 있으면(SuspectChoiceScene.js의
-          // suspectChosenIndex), 매번 VN 대화 + 다빈치코드 대전을 다시 시킬 필요 없이 바로
-          // 심문 선택지 화면으로 보낸다 - 거기서 확정된 답만 다시 보여준다.
-          if (suspectChosenIndex[npcData.id] != null) {
+          // 이미 이 용의자를 이겨서 질문을 하나 확정지은 적이 있으면(세이브의
+          // suspects[id].selectedQuestion - SuspectChoiceScene.js가 기록), 매번 VN 대화 +
+          // 다빈치코드 대전을 다시 시킬 필요 없이 바로 심문 선택지 화면으로 보낸다 -
+          // 거기서 확정된 답만 다시 보여준다.
+          const lockedIndex = window.GameSave?.state?.data?.suspects?.[npcData.id]?.selectedQuestion;
+          if (lockedIndex != null) {
             this.scene.start('SuspectChoiceScene', {
               npcId: npcData.id, npcName: npcData.name, returnMapKey: this.currentMapKey,
               returnX: this.player.x, returnY: this.player.y,
