@@ -194,6 +194,7 @@ class MapScene extends Phaser.Scene {
     this.resumeY = data.returnY ?? null;
     // 최종 추리를 위해 마을로 강제 이동된 상태인지
     this.endingGather = data.endingGather === true;
+    this.storyEvent = data.storyEvent || null;
   }
 
   preload() {
@@ -453,7 +454,9 @@ class MapScene extends Phaser.Scene {
       .map(obj => new Phaser.Geom.Polygon(obj.polygon.map(p => ({ x: obj.x + p.x, y: obj.y + p.y }))));
     // walkdisable 오브젝트는 사각형뿐 아니라 폴리곤으로도 그릴 수 있다(폴리곤은 Tiled에서
     // width/height가 0으로 저장되므로, 사각형 취급하면 사실상 아무 것도 막지 못한다).
+    const hiddenForestUnlocked = window.GameSave?.state?.data?.story?.hiddenForestUnlocked === true;
     this.walkdisableShapes = (map.getObjectLayer('walkdisable')?.objects || [])
+      .filter(obj => !(obj.name === 'hidden_forest_blocker' && hiddenForestUnlocked))
       .map(obj => obj.polygon
         ? new Phaser.Geom.Polygon(obj.polygon.map(p => ({ x: obj.x + p.x, y: obj.y + p.y })))
         : new Phaser.Geom.Rectangle(obj.x, obj.y, obj.width || 1, obj.height || 1));
@@ -697,6 +700,13 @@ class MapScene extends Phaser.Scene {
             }
         );
     }
+    if (this.storyEvent === 'forestDiscovery') {
+      this.time.delayedCall(350, () => this.scene.start('EndingStoryScene', { route: 'forestDiscovery' }));
+    }
+    const story = window.GameSave?.state?.data?.story;
+    if (this.currentMapKey === 'map_08_body' && story?.phase === 'hidden_forest' && story.bodyFound === false) {
+      this.time.delayedCall(450, () => this.scene.start('EndingStoryScene', { route: 'bodyConfession' }));
+    }
     // 8. 오프닝 컷씬. 맨 처음 마을에 들어왔을 때(포탈을 타고 온 게 아니라 게임을 막 시작했을
     // 때)만 한 번 재생한다.
     if (this.currentMapKey === 'map_01_village' && !this.fromMapKey && !hasPlayedIntro &&  !this.endingGather ) {
@@ -855,6 +865,16 @@ class MapScene extends Phaser.Scene {
       this.physics.add.existing(zone, true);
 
       this.physics.add.overlap(this.player, zone, () => {
+        if (targetMap === 'map_08_body'
+          && window.GameSave?.state?.data?.story?.hiddenForestUnlocked !== true) {
+          if (!this.portalLockNotice || this.time.now > this.portalLockNotice) {
+            this.portalLockNotice = this.time.now + 1500;
+            this.interactText.setText('안쪽은 너무 어두워 들어갈 수 없다.').setVisible(true);
+          }
+          return;
+        }
+        if (this.portalTransitioning) return;
+        this.portalTransitioning = true;
         this.scene.restart({ mapKey: targetMap, fromMapKey: this.currentMapKey });
       });
     });
@@ -1047,9 +1067,8 @@ startFinalGatherDialogue() {
         console.log(
             '[최종 집합] 대화 완료 → final_deduction'
         );
-
-        // 다음 단계에서 여기에
-        // FinalDeductionScene으로 이동하는 코드를 연결한다.
+        this.scale.resize(960, 540);
+        this.scene.start('FinalDeductionScene');
     };
 
     this.showDialogueLine();
@@ -1126,6 +1145,7 @@ startFinalGatherDialogue() {
   // 애초에 여기로 안 오고 SuspectVNScene으로 바로 가서 거기서 "수사하기" 버튼을 눌러야만
   // 다빈치코드로 넘어간다 - 예전엔 여기서도 무조건 미니게임을 켜버리는 버그가 있었다.
   endDialogue() {
+    const completedNpcId = this.currentNpcData?.id;
     this.isTalking = false;
     this.dialogueBox.setVisible(false);
     this.dialoguePortraitBg.setVisible(false);
@@ -1143,6 +1163,21 @@ startFinalGatherDialogue() {
 
     if (callback) {
         callback();
+    }
+
+    const coverup = window.GameSave?.state?.data?.story?.painterCoverup;
+    if (coverup && completedNpcId) {
+      let changed = false;
+      if (completedNpcId === 'boy' || completedNpcId === 'girl') {
+        changed = !coverup.alibiGap || !coverup.farmerRelationship;
+        coverup.alibiGap = true;
+        coverup.farmerRelationship = true;
+      }
+      if (completedNpcId === 'hunter') {
+        changed = changed || !coverup.bloodyTowel;
+        coverup.bloodyTowel = true;
+      }
+      if (changed) window.GameSave.saveGame().catch(error => console.error('[은폐 단서] 저장 실패:', error));
     }
   }
 

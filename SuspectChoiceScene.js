@@ -235,6 +235,13 @@ class SuspectChoiceScene extends Phaser.Scene {
           // 이 용의자의 조사를 완료한 것으로 처리
           suspectProgress.clueObtained = true;
 
+          // 화가 조사를 마치면 수건의 붉은 안료 흔적은 질문 선택과 무관하게 확보한다.
+          // 한 질문만 고를 수 있는 구조 때문에 TRUE END가 운에 좌우되지 않도록 한다.
+          if (this.npcId === 'painter' && save.story?.painterCoverup) {
+              save.story.painterCoverup.redPigment = true;
+              save.story.painterCoverup.bloodyTowel = true;
+          }
+
           console.log(
               `[조사 진행] ${this.npcId} 조사 완료`,
               {

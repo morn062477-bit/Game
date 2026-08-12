@@ -501,6 +501,18 @@ class DaVinciCodeScene extends Phaser.Scene {
     const win = winner === this.human;
     this.matchWon = win;
 
+    if (win) {
+      const suspectProgress = window.GameSave?.state?.data?.suspects?.[this.npcId];
+      if (suspectProgress) {
+        suspectProgress.matchWon = true;
+        try {
+          await window.GameSave.saveGame();
+        } catch (error) {
+          console.error(`[다빈치코드] ${this.npcId} 승리 저장 실패:`, error);
+        }
+      }
+    }
+
     if (win && this.skillInfo) {
       const skillKey = BOT_ITEM_ASSIGNMENT[this.botName];
       const unlocked = new Set(this.registry.get('unlockedSkills') || []);

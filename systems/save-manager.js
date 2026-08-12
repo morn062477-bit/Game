@@ -177,6 +177,74 @@ function resetSaveState() {
 
 
 // =============================================
+// 저장 데이터 구조 보정
+// 이전 버전/부분 저장 데이터도 현재 v2 구조로 안전하게 채운다.
+// =============================================
+
+function mergeSaveDefaults(defaultValue, savedValue) {
+    if (Array.isArray(defaultValue)) {
+        return Array.isArray(savedValue)
+            ? structuredClone(savedValue)
+            : structuredClone(defaultValue);
+    }
+
+    if (defaultValue && typeof defaultValue === "object") {
+        const savedObject =
+            savedValue && typeof savedValue === "object" && !Array.isArray(savedValue)
+                ? savedValue
+                : {};
+
+        const result = {};
+
+        Object.keys(defaultValue).forEach((key) => {
+            result[key] = mergeSaveDefaults(
+                defaultValue[key],
+                savedObject[key]
+            );
+        });
+
+        // 현재 스키마에 없는 확장 데이터도 잃지 않도록 보존한다.
+        Object.keys(savedObject).forEach((key) => {
+            if (!(key in result)) {
+                result[key] = structuredClone(savedObject[key]);
+            }
+        });
+
+        return result;
+    }
+
+    return savedValue ?? defaultValue;
+}
+
+function normalizeSaveData(rawSaveData) {
+    const source =
+        rawSaveData && typeof rawSaveData === "object"
+            ? structuredClone(rawSaveData)
+            : {};
+
+    source.suspects ??= {};
+
+    // v1에서 사용하던 용의자 키를 실제 MapScene NPC id로 옮긴다.
+    const legacySuspectIds = {
+        chiefWife: "wife",
+        cartoonist: "painter",
+        fisherman: "fisher"
+    };
+
+    Object.entries(legacySuspectIds).forEach(([oldId, currentId]) => {
+        if (!source.suspects[currentId] && source.suspects[oldId]) {
+            source.suspects[currentId] = source.suspects[oldId];
+        }
+    });
+
+    const normalized = mergeSaveDefaults(INITIAL_SAVE_DATA, source);
+    normalized.saveVersion = INITIAL_SAVE_DATA.saveVersion;
+
+    return normalized;
+}
+
+
+// =============================================
 // 세이브가 존재하는지 확인
 // =============================================
 
@@ -258,9 +326,30 @@ async function loadSave() {
 
     saveState.playTime = data.play_time ?? 0;
 
-    saveState.data =
-        data.save_data ??
-        structuredClone(INITIAL_SAVE_DATA);
+    const rawSaveData = data.save_data;
+    saveState.data = normalizeSaveData(rawSaveData);
+
+    // 보정된 구조를 DB에도 다시 저장해 다음 접속부터 같은 누락이 반복되지 않게 한다.
+    if (JSON.stringify(rawSaveData) !== JSON.stringify(saveState.data)) {
+        const { error: normalizeError } = await window.GameSupabase
+            .from("saves")
+            .upsert(
+                {
+                    user_id: user.id,
+                    play_time: saveState.playTime,
+                    save_data: saveState.data,
+                    updated_at: new Date().toISOString()
+                },
+                { onConflict: "user_id" }
+            );
+
+        if (normalizeError) {
+            console.error("세이브 구조 보정 저장 실패:", normalizeError);
+            throw normalizeError;
+        }
+
+        console.log("세이브 구조를 v2로 보정했습니다.");
+    }
 
     console.log("세이브 불러오기 완료:", saveState.data);
 
@@ -311,6 +400,8 @@ window.GameSave = {
     initialSaveData: INITIAL_SAVE_DATA,
 
     resetSaveState,
+
+    normalizeSaveData,
 
     hasSave,
     createNewSave,
