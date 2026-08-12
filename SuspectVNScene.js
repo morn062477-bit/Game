@@ -107,7 +107,7 @@ class SuspectVNScene extends Phaser.Scene {
   showLine() {
     const isLast = this.dialogueIndex >= this.dialogueLines.length - 1;
     this.lineText.setText(this.dialogueLines[this.dialogueIndex]);
-    this.hintText.setText(isLast ? '[SPACE] 심문 시작' : '[SPACE] 다음');
+    this.hintText.setText(isLast ? '[SPACE] 수사 시작' : '[SPACE] 다음');
   }
 
   update() {

@@ -33,6 +33,23 @@ const NPC_TO_BOT_NAME = {
   wife: '봇1', hunter: '봇3', farmer: '봇4', painter: '봇5', fisher: '봇6',
 };
 
+// 맵 키 -> 발소리 텍스처 키. water 맵은 보트라서 발소리가 없다(빠져있음).
+const STEP_SOUND_BY_MAP = {
+  map_01_village: 'step-village',
+  map_02_forest: 'step-forest-farm',
+  map_03_farm: 'step-forest-farm',
+  map_04_port: 'step-village',
+  map_07_inter: 'step-village',
+  map_05_lake: 'step-forest-farm',
+  map_08_body: 'step-forest-farm',
+};
+
+// 맵 키 -> bgm-main 위에 같이 겹쳐서 틀 전용 배경음악. 여기 없는 맵은 bgm-main만 나온다.
+const EXTRA_BGM_BY_MAP = {
+  map_06_water: { key: 'bgm-water', volume: 0.7 },
+  map_04_port: { key: 'bgm-port', volume: 0.2 },
+};
+
 class MapScene extends Phaser.Scene {
   constructor() {
     super('MapScene');
@@ -108,6 +125,18 @@ class MapScene extends Phaser.Scene {
 
     // 오프닝 컷씬 전용: 발견 장면에서 잠깐 블러 처리해서 띄우는 잘린 머리 그림.
     this.load.image('cutscene-head', `asset/decorations/head.png?v=${v}`);
+
+    // 이동 발소리. 맵 분위기에 따라 다른 파일을 쓴다(STEP_SOUND_BY_MAP 참고).
+    // village/port/inter는 전부 village 발소리로 통일. water 맵은 보트라서 발소리 자체가 없다.
+    this.load.audio('step-village', `asset/sound/vilage_step.mp3?v=${v}`);
+    this.load.audio('step-forest-farm', `asset/sound/forest_farm_step.mp3?v=${v}`);
+
+    // 배경음악. 맵을 옮겨다닐 때마다(포탈 -> scene.restart) 씬이 새로 만들어지는데,
+    // 그때마다 처음부터 다시 재생되면 끊기니 create()에서 이미 재생 중이면 건너뛴다.
+    // water/port 맵은 전용 배경음악(bgm-water/bgm-port)을 bgm-main 위에 겹쳐서 같이 튼다.
+    this.load.audio('bgm-main', `asset/sound/main.mp3?v=${v}`);
+    this.load.audio('bgm-water', `asset/sound/water_map.mp3?v=${v}`);
+    this.load.audio('bgm-port', `asset/sound/port.mp3?v=${v}`);
   }
 
   // 방향별 애니메이션은 씬이 재시작될 때마다 다시 만들면 "키가 이미 있다" 에러가 나서,
@@ -418,6 +447,29 @@ class MapScene extends Phaser.Scene {
     this.isTalking = false;
     this.isCutscene = false;
     this.nearNPC = null;
+    this.lastStepSoundTime = 0;
+
+    // 배경음악 재생. bgm-main은 항상 깔리고, 맵별 전용 배경음악(EXTRA_BGM_BY_MAP)이
+    // 있으면 그 위에 겹쳐서 같이 튼다(하나가 다른 하나를 대체하지 않음). 사운드
+    // 매니저(this.sound)는 씬이 restart돼도 유지되므로, 이미 만들어둔 인스턴스가
+    // 있으면(포탈로 맵을 옮긴 경우 등) 그대로 이어서 쓰고, 없을 때만 새로 만든다 —
+    // 그래야 맵 옮길 때마다 처음부터 다시 재생되지 않는다.
+    const playBgm = (key, volume = 0.4) => {
+      const bgm = this.sound.get(key) || this.sound.add(key, { loop: true, volume });
+      if (bgm.isPaused) bgm.resume();
+      else if (!bgm.isPlaying) bgm.play();
+      return bgm;
+    };
+    this.bgmMain = playBgm('bgm-main');
+    const extra = EXTRA_BGM_BY_MAP[this.currentMapKey];
+    Object.entries(EXTRA_BGM_BY_MAP).forEach(([mapKey, { key }]) => {
+      if (mapKey === this.currentMapKey) return;
+      const bgm = this.sound.get(key);
+      if (bgm && (bgm.isPlaying || bgm.isPaused)) bgm.pause();
+    });
+    if (extra) {
+      this.bgmExtra = playBgm(extra.key, extra.volume);
+    }
 
     // 8. 오프닝 컷씬. 맨 처음 마을에 들어왔을 때(포탈을 타고 온 게 아니라 게임을 막 시작했을
     // 때)만 한 번 재생한다.
@@ -593,6 +645,17 @@ class MapScene extends Phaser.Scene {
     if (this.cursors.down.isDown)  vy = speed;
 
     this.player.body.setVelocity(vx, vy);
+
+    // 이동 중일 때만 일정 간격으로 발소리를 재생한다(맵마다 다른 소리, 달릴 땐 더 자주).
+    // 보트(water 맵)는 발이 없으니 발소리 자체를 재생하지 않는다.
+    const stepKey = STEP_SOUND_BY_MAP[this.currentMapKey];
+    if (!this.isBoat && stepKey && (vx !== 0 || vy !== 0)) {
+      const stepInterval = isRunning ? 260 : 380;
+      if (this.time.now - this.lastStepSoundTime > stepInterval) {
+        this.sound.play(stepKey, { volume: 0.3 });
+        this.lastStepSoundTime = this.time.now;
+      }
+    }
 
     if (this.isBoat) {
       // 보트는 스프라이트시트가 아니라 정지 그림 한 장이라 걷기 애니메이션 대신
