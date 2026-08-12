@@ -26,10 +26,11 @@ const DIALOGUE_SCRIPTS = {
   ],
 };
 
-// npc id -> 다빈치코드 미니게임 쪽 봇 이름(봇1~봇6). 대화가 끝나면 이 매핑으로 상대를
-// 정해서 미니게임을 시작한다. 아직 다 안 채워서 없는 id는 기본으로 봇1과 붙는다.
+// npc id -> 다빈치코드 미니게임 쪽 봇 이름(봇1~봇6). 이 표에 있는 npc만 "용의자"로
+// 취급돼서 대화 시 VN 화면+미니게임으로 이어진다(그 외 npc는 기존 하단 대화창만).
+// 지금은 VN/카드 그림이 준비된 다섯 명만 넣어뒀다.
 const NPC_TO_BOT_NAME = {
-  saint: '봇1', docter: '봇2', hunter: '봇3', farmer: '봇4', painter: '봇5', fisher: '봇6',
+  wife: '봇1', hunter: '봇3', farmer: '봇4', painter: '봇5', fisher: '봇6',
 };
 
 class MapScene extends Phaser.Scene {
@@ -384,6 +385,8 @@ class MapScene extends Phaser.Scene {
     this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     // Shift를 누르고 있으면 달리기
     this.shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
+    // Enter로 오프닝 컷씬 스킵
+    this.enterKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
 
     // 예전엔 (640,670)에 있었는데, 화면이 960x540이라 670은 화면 밖이라 안 보이고 있었다.
     this.interactText = this.add.text(this.cameras.main.width / 2, this.cameras.main.height - 40, '', {
@@ -560,6 +563,9 @@ class MapScene extends Phaser.Scene {
     }
     if (this.isCutscene) {
       this.player.body.setVelocity(0);
+      if (Phaser.Input.Keyboard.JustDown(this.enterKey)) {
+        this.skipIntroCutscene();
+      }
       return;
     }
 
@@ -641,7 +647,13 @@ class MapScene extends Phaser.Scene {
       this.interactText.setText(`[SPACE] ${npcData.name}와 대화하기`).setVisible(true);
 
       if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
-        this.startDialogue(npcData);
+        // 용의자(다빈치코드 대전 상대로 매핑된 NPC)는 미연시풍 배경+일러스트 화면으로,
+        // 그 외 일반 NPC는 지금까지의 하단 대화창으로 처리한다.
+        if (NPC_TO_BOT_NAME[npcData.id]) {
+          this.scene.start('SuspectVNScene', { npcId: npcData.id, npcName: npcData.name, returnMapKey: this.currentMapKey });
+        } else {
+          this.startDialogue(npcData);
+        }
       }
     } else {
       this.interactText.setText('').setVisible(false);
@@ -703,6 +715,10 @@ class MapScene extends Phaser.Scene {
   // 카메라 추적도 잠깐 끈다(성녀 쪽을 비춰야 하므로).
   playIntroCutscene(map) {
     this.isCutscene = true;
+    this.introSkipped = false;
+    // 스킵(Enter) 시 곧바로 이 자리로 보내야 하므로, 옮기기 전 위치를 미리 기억해둔다.
+    this.introFinalX = this.player.x;
+    this.introFinalY = this.player.y;
     this.player.setVisible(false);
     this.player.body.enable = false;
     this.cameras.main.stopFollow();
@@ -712,14 +728,22 @@ class MapScene extends Phaser.Scene {
     const PANEL_FILL = 0x2a1f14;   // 어두운 가죽/양피지 색
     const PANEL_BORDER = 0xb8860b; // 청동/황동 테두리
 
+    // 스킵 가능하다는 걸 알려주는 안내문. 화면 우하단에 계속 떠 있다가 스킵/컷씬 종료 시 지운다.
+    this.introSkipHint = this.add.text(cam.width - 16, cam.height - 16, '[ENTER] 건너뛰기', {
+      fontSize: '12px', fill: '#cbb994', backgroundColor: '#000000aa', padding: { x: 8, y: 4 },
+    }).setOrigin(1, 1).setScrollFactor(0).setDepth(2200);
+
     // 자막 배경은 Text의 backgroundColor 대신 Graphics로 그린 양피지풍 패널을 쓴다.
     // 글자 크기가 바뀔 때마다 패널 크기도 다시 계산해서 그려야 하므로 helper로 뺀다.
     const captionPanel = this.add.graphics().setScrollFactor(0).setDepth(1999).setAlpha(0);
     const caption = this.add.text(cam.width / 2, cam.height / 2, '', {
       fontSize: '38px', fill: '#f2e6cf', align: 'center', letterSpacing: 3,
-      padding: { x: 24, y: 16 },
+      padding: { x: 24, y: 34 },
       wordWrap: { width: cam.width - 160 },
     }).setOrigin(0.5).setScrollFactor(0).setDepth(2000).setAlpha(0);
+    // 스킵 처리(skipIntroCutscene)에서 지워야 하니 인스턴스에도 걸어둔다.
+    this.introCaption = caption;
+    this.introCaptionPanel = captionPanel;
     const drawCaptionPanel = () => {
       const w = caption.width + 20;
       const h = caption.height + 16;
@@ -751,6 +775,7 @@ class MapScene extends Phaser.Scene {
     // 블러를 걸어서 화면 중앙에 띄운다. 평소엔 숨김.
     const headImage = this.add.image(cam.width / 2, cam.height / 2, 'cutscene-head')
       .setScrollFactor(0).setDepth(2100).setAlpha(0).setDisplaySize(480, 720);
+    this.introHeadImage = headImage;
     // 렌더러에 따라(특히 캔버스 폴백) FX가 아예 없을 수 있어 실패해도 컷씬이 안 멈추게 감싼다.
     try { headImage.postFX?.addBlur(0, 1, 1, 2, 0xffffff, 4); } catch (e) { console.warn('머리 이미지 블러 효과 실패:', e); }
     const flashHeadImage = holdMs => new Promise(resolve => {
@@ -768,6 +793,8 @@ class MapScene extends Phaser.Scene {
     const saintEntry = this.npcById.get('saint');
     // 도망칠 때 원래 서 있던 자리까지 되짚어가야 하므로 이동하기 전 원위치를 미리 기억해둔다.
     const saintOriginalPos = saintEntry ? { x: saintEntry.sprite.x, y: saintEntry.sprite.y } : null;
+    this.introSaintEntry = saintEntry;
+    this.introSaintOriginalPos = saintOriginalPos;
     const statueX = statue ? statue.x + statue.width / 2 : this.player.x;
     const statueY = statue ? statue.y + statue.height / 2 - 40 : this.player.y;
 
@@ -915,6 +942,7 @@ class MapScene extends Phaser.Scene {
       await wait(300);
 
       headImage.destroy();
+      this.introSkipHint.destroy();
       this.player.body.enable = true;
       this.player.body.reset(this.player.x, this.player.y);
       this.lastValidPos = { x: this.player.x, y: this.player.y };
@@ -927,6 +955,7 @@ class MapScene extends Phaser.Scene {
       caption.destroy();
       captionPanel.destroy();
       headImage.destroy();
+      this.introSkipHint.destroy();
       this.player.setVisible(true);
       this.player.body.enable = true;
       this.player.body.reset(this.player.x, this.player.y);
@@ -934,5 +963,42 @@ class MapScene extends Phaser.Scene {
       cam.startFollow(this.player);
       this.isCutscene = false;
     });
+  }
+
+  // Enter를 누르면 오프닝 컷씬을 건너뛴다. 진행 중이던 트윈/타이머를 전부 죽이고
+  // (그러면 컷씬의 async 시퀀스는 다음 await에서 영원히 멈춘 채 방치되지만, 화면엔
+  // 아무 영향 없다) 성녀/탐정/카메라를 각자의 최종 상태로 즉시 맞춰준다.
+  skipIntroCutscene() {
+    if (!this.isCutscene || this.introSkipped) return;
+    this.introSkipped = true;
+
+    this.tweens.killAll();
+    this.time.removeAllEvents();
+    this.cameras.main.resetFX();
+
+    this.introCaption?.destroy();
+    this.introCaptionPanel?.destroy();
+    this.introHeadImage?.destroy();
+    this.introSkipHint?.destroy();
+
+    if (this.introSaintEntry) {
+      const { sprite, label } = this.introSaintEntry;
+      const pos = this.introSaintOriginalPos;
+      sprite.setPosition(pos.x, pos.y);
+      sprite.body.reset(pos.x, pos.y);
+      sprite.anims.stop();
+      sprite.setFrame(0);
+      label?.setPosition(pos.x, pos.y - sprite.displayHeight / 2 - 8);
+    }
+
+    this.player.setPosition(this.introFinalX, this.introFinalY);
+    this.player.setVisible(true);
+    this.player.anims.stop();
+    this.player.setFrame(0);
+    this.player.body.enable = true;
+    this.player.body.reset(this.introFinalX, this.introFinalY);
+    this.lastValidPos = { x: this.introFinalX, y: this.introFinalY };
+    this.cameras.main.startFollow(this.player);
+    this.isCutscene = false;
   }
 }

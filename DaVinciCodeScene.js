@@ -2,10 +2,20 @@
 // BOT_ITEM_ASSIGNMENT, ITEM_SKILLS는 daVinciLogic.js가 만드는 전역 값들이다.
 // (index.html에서 daVinciLogic.js를 이 파일보다 먼저 로드해야 한다.)
 
-const TILE_W = 44;
-const TILE_H = 64;
+const TILE_W = 66;
+const TILE_H = 96;
 const FONT = 'Galmuri9, monospace';
 const FONT_BOLD = 'Galmuri11, monospace';
+
+// botName -> 카드 배경 이미지 테마. 그림 없는 봇(봇2=docter)은 기존처럼 색깔 사각형으로
+// 그려진다. 새 용의자 카드 그림을 받으면 여기 항목만 추가하면 된다.
+const CARD_THEME_BY_BOT = {
+  봇1: 'wife',
+  봇3: 'hunter',
+  봇4: 'farmer',
+  봇5: 'painter',
+  봇6: 'fisher',
+};
 
 // 화면을 위(상대) / 가운데(매트) / 아래(주인공) 3단으로 나눈다. 사용자가 그린
 // 와이어프레임(캐릭터 초상 + 대화창을 위아래에, 매트 위에 카드 두 줄 + 남은 카드
@@ -106,6 +116,13 @@ class DaVinciCodeScene extends Phaser.Scene {
     const v = Date.now();
     this.load.image('coinFaceA', `asset/davinci/coin_face_a.png?v=${v}`);
     this.load.image('coinFaceB', `asset/davinci/coin_face_b.png?v=${v}`);
+
+    // 카드 배경 그림. 지금 상대(botName)에 해당하는 테마가 있을 때만 불러온다.
+    this.cardTheme = CARD_THEME_BY_BOT[this.botName] || null;
+    if (this.cardTheme) {
+      this.load.image('cardBlack', `asset/davinci/card-black-${this.cardTheme}.png?v=${v}`);
+      this.load.image('cardWhite', `asset/davinci/card-white-${this.cardTheme}.png?v=${v}`);
+    }
   }
 
   create() {
@@ -804,22 +821,42 @@ class DaVinciCodeScene extends Phaser.Scene {
 
   // block: { color, number } 형태. number가 null이면 미공개 - 색은 그대로 칠하되 숫자만 비운다.
   makeTile(x, y, block, onClick) {
-    const bg = block.color === Color.BLACK ? 0x1f1f22 : 0xf3efe2;
     const border = 0x2b2620;
     const g = this.add.graphics();
     g.fillStyle(0x000000, 0.3);
     g.fillRect(x + 3, y + 3, TILE_W, TILE_H);
-    g.fillStyle(bg, 1);
-    g.fillRect(x, y, TILE_W, TILE_H);
-    g.lineStyle(3, border, 1);
-    g.strokeRect(x, y, TILE_W, TILE_H);
 
-    // 뒷면(미공개)은 숫자 대신 물음표를 보여준다.
-    const label = block.number === null ? '?' : String(block.number);
-    const textColor = block.color === Color.BLACK ? '#f0ece0' : '#1a1a1a';
-    const text = this.add.text(x + TILE_W / 2, y + TILE_H / 2, label, { fontFamily: FONT_BOLD, fontSize: '16px', color: textColor }).setOrigin(0.5);
+    const isHidden = block.number === null;
+    // 지금 받은 카드 그림은 "뒷면" 디자인이라, 미공개(숨겨진) 카드에만 쓴다. 나중에
+    // 앞면(공개된 숫자 카드) 디자인이 생기면 cardBlackFront/cardWhiteFront 키로
+    // 채워서 아래 frontKey 자리에 로드해주면 공개된 카드도 그림으로 바뀐다.
+    const backKey = block.color === Color.BLACK ? 'cardBlack' : 'cardWhite';
+    const frontKey = block.color === Color.BLACK ? 'cardBlackFront' : 'cardWhiteFront';
+    const imgKey = isHidden ? backKey : frontKey;
+    const hasImg = this.cardTheme && this.textures.exists(imgKey);
 
-    const children = [g, text];
+    const children = [g];
+    if (hasImg) {
+      const cardImg = this.add.image(x + TILE_W / 2, y + TILE_H / 2, imgKey).setDisplaySize(TILE_W, TILE_H);
+      children.push(cardImg);
+    } else {
+      const bg = block.color === Color.BLACK ? 0x1f1f22 : 0xf3efe2;
+      g.fillStyle(bg, 1);
+      g.fillRect(x, y, TILE_W, TILE_H);
+      g.lineStyle(3, border, 1);
+      g.strokeRect(x, y, TILE_W, TILE_H);
+    }
+
+    // 카드 그림이 있으면 그 자체로 앞/뒷면이 표현되니 "?"/숫자 텍스트는 안 그린다.
+    // 그림이 없는 경우(테마 없는 봇, 혹은 아직 없는 앞면)만 예전처럼 텍스트로 표시한다.
+    if (!hasImg) {
+      const label = isHidden ? '?' : String(block.number);
+      const textColor = block.color === Color.BLACK ? '#f0ece0' : '#1a1a1a';
+      const text = this.add.text(x + TILE_W / 2, y + TILE_H / 2, label, {
+        fontFamily: FONT_BOLD, fontSize: '16px', color: textColor,
+      }).setOrigin(0.5);
+      children.push(text);
+    }
     if (onClick) {
       const hitZone = this.add.zone(x, y, TILE_W, TILE_H).setOrigin(0, 0).setInteractive({ useHandCursor: true });
       hitZone.on('pointerdown', onClick);

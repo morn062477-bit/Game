@@ -14,9 +14,9 @@ const config = {
     }
   },
 
-  // 사용할 Scene 목록. DaVinciCodeScene(다빈치코드 미니게임)은 NPC와 대화가 끝나면
-  // MapScene의 launchNextGame()에서 전환된다.
-  scene: [MapScene, DaVinciCodeScene]
+  // 사용할 Scene 목록. 용의자 NPC와 대화를 시작하면 SuspectVNScene(미연시풍 배경+
+  // 일러스트+대사)으로 넘어가고, 대사가 끝나면 DaVinciCodeScene(다빈치코드 미니게임)으로 이어진다.
+  scene: [MapScene, SuspectVNScene, DaVinciCodeScene]
 };
 
 // 게임 시작!
