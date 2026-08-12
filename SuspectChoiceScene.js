@@ -65,11 +65,6 @@ const SUSPECT_CHOICE_SCRIPTS = {
   },
 };
 
-// npc id -> 이미 고른 질문의 인덱스. 한 번 질문을 고르면 그 뒤로 같은 용의자에게
-// 다시 말을 걸어도 그때 고른 질문의 대답만 다시 보여주고, 다른 두 질문은 더 이상
-// 고를 수 없게 한다(페이지를 새로고침하기 전까지 세션 동안 유지).
-const suspectChosenIndex = {};
-
 class SuspectChoiceScene extends Phaser.Scene {
   constructor() {
     super('SuspectChoiceScene');
@@ -170,12 +165,19 @@ class SuspectChoiceScene extends Phaser.Scene {
       return;
     }
 
-    // 이 용의자에게 이미 질문을 하나 골랐던 적이 있으면, 목록을 다시 보여주지 않고
-    // 그때 골랐던 질문의 대답만 바로 다시 보여준다.
-    const lockedIndex = suspectChosenIndex[this.npcId];
+    // =============================================
+    // 이미 선택한 질문이 있는지 세이브 데이터에서 확인
+    // =============================================
+
+    const suspectProgress =
+        window.GameSave?.state?.data?.suspects?.[this.npcId];
+
+    const lockedIndex =
+        suspectProgress?.selectedQuestion;
+
     if (lockedIndex != null) {
-      this.showResponse(lockedIndex);
-      return;
+        this.showResponse(lockedIndex);
+        return;
     }
 
     this.bodyText.setText(this.script.intro || '무엇을 물어볼까?');
@@ -189,25 +191,154 @@ class SuspectChoiceScene extends Phaser.Scene {
     this.refreshListHighlight();
   }
 
-  // 고른 질문의 응답을 보여준다. 다른 질문은 더 고를 수 없으므로 SPACE는 나가기.
-  showResponse(index) {
-    this.mode = 'response';
-    this.choiceButtons.forEach(b => b.container.setVisible(false));
-    const choice = this.script.choices[index];
-    this.bodyText.setText(choice.response || '(응답 내용이 아직 없다)');
-    this.hintText.setText('[SPACE] 나가기');
+  async showResponse(index) {
+      this.mode = 'response';
 
-    // 처음 고른 질문이면 잠가서, 이 용의자에게 나중에 다시 말을 걸어도 이 대답만
-    // 보이게 한다.
-    if (suspectChosenIndex[this.npcId] == null) {
-      suspectChosenIndex[this.npcId] = index;
-    }
+      this.choiceButtons.forEach(
+          b => b.container.setVisible(false)
+      );
+
+      const choice = this.script.choices[index];
+
+      this.bodyText.setText(
+          choice.response || '(응답 내용이 아직 없다)'
+      );
+
+      this.hintText.setText('[SPACE] 나가기');
+
+      // =============================================
+      // 현재 용의자의 세이브 진행도 가져오기
+      // =============================================
+
+      const save =
+          window.GameSave?.state?.data;
+
+      const suspectProgress =
+          save?.suspects?.[this.npcId];
+
+      if (!save || !suspectProgress) {
+          console.warn(
+              `[조사 진행] 세이브에 없는 용의자 ID: ${this.npcId}`
+          );
+          return;
+      }
+
+      // =============================================
+      // 처음 질문을 선택했을 때만 조사 완료 처리
+      // =============================================
+
+      if (suspectProgress.selectedQuestion == null) {
+
+          // 어떤 질문을 골랐는지 저장
+          suspectProgress.selectedQuestion = index;
+
+          // 이 용의자의 조사를 완료한 것으로 처리
+          suspectProgress.clueObtained = true;
+
+          console.log(
+              `[조사 진행] ${this.npcId} 조사 완료`,
+              {
+                  selectedQuestion: index,
+                  clueObtained: true
+              }
+          );
+
+          // =============================================
+          // 용의자 5명 조사가 모두 끝났는지 확인
+          // =============================================
+
+          const suspectIds = [
+              'wife',
+              'hunter',
+              'farmer',
+              'painter',
+              'fisher'
+          ];
+
+          const allInvestigated =
+              suspectIds.every((id) =>
+                  save.suspects[id]?.clueObtained === true
+              );
+
+          if (allInvestigated) {
+              save.finalDeductionUnlocked = true;
+
+              save.story.phase = 'final_gather';
+
+              console.log(
+                  '[조사 진행] 용의자 5명 조사 완료 → 최종 추리 조건 충족'
+              );
+          }
+
+          // =============================================
+          // Supabase에 저장
+          // =============================================
+
+          try {
+              await window.GameSave.saveGame();
+
+              console.log(
+                  `[조사 진행] ${this.npcId} 질문/단서 저장 완료`
+              );
+          } catch (error) {
+              console.error(
+                  `[조사 진행] ${this.npcId} 저장 실패`,
+                  error
+              );
+          }
+      }
   }
 
   exitToMap() {
-    this.scene.start('MapScene', {
-      mapKey: this.returnMapKey, returnX: this.returnX, returnY: this.returnY,
-    });
+      const save =
+          window.GameSave?.state?.data;
+
+      // =============================================
+      // 용의자 5명 조사 완료 후 최종 집합 이벤트 시작
+      // =============================================
+      const shouldStartFinalGather =
+          save?.finalDeductionUnlocked === true &&
+          save?.story?.phase === 'final_gather' &&
+          save?.story?.finalGatherPlayed === false;
+
+      if (shouldStartFinalGather) {
+
+          // 중복 입력 방지
+          this.input.enabled = false;
+
+          // 화면을 검게 암전
+          this.cameras.main.fadeOut(
+              300,
+              0,
+              0,
+              0
+          );
+
+          this.cameras.main.once(
+              Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE,
+              () => {
+                  this.scene.start('MapScene', {
+                      mapKey: 'map_01_village',
+
+                      // MapScene에서
+                      // "최종 집합 이벤트로 들어온 것"임을 알기 위한 값
+                      endingGather: true
+                  });
+              }
+          );
+
+          return;
+      }
+
+      // =============================================
+      // 평소 조사 종료
+      // 기존 위치로 복귀
+      // =============================================
+      this.scene.start('MapScene', {
+          mapKey: this.returnMapKey,
+          returnX: this.returnX,
+          returnY: this.returnY,
+      });
   }
 
   // 질문 목록의 항목 하나(가로로 긴 얇은 버튼).

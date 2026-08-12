@@ -10,7 +10,7 @@ const config = {
     default: 'arcade',         // arcade = 간단한 2D 물리
     arcade: {
       gravity: { y: 0 },      // 탑다운 게임이라 중력 없음
-      debug: false             // true로 바꾸면 충돌 영역이 보임 (개발 중에만 켜서 쓰기)
+      debug: false            // true로 바꾸면 충돌 영역이 보임 (개발 중에만 켜서 쓰기)
     }
   },
 
