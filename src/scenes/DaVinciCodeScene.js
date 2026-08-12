@@ -14,7 +14,14 @@ const FONT_BOLD = 'Galmuri11, monospace';
 const FONT_NUMBER = 'Blacksword, serif'; // 카드 숫자 전용 고딕 폰트
 // 카드 앞면 템플릿 이미지에서 숫자가 들어갈 자리의 중심 y위치(카드 높이 대비 비율).
 // 흰 카드/검은 카드 원본 그림의 여백이 서로 살짝 달라서 따로 둔다.
-const NUMBER_CENTER_Y_FRAC = { white: 0.565, black: 0.59 };
+const NUMBER_CENTER_Y_FRAC = { white: 0.545, black: 0.59 };
+// 10, 11처럼 두 자리 숫자는 Blacksword 서체가 필기체라 획이 옆으로 많이 퍼진다 -
+// 한 자리 숫자와 같은 크기로 그리면 카드 안쪽 빈 자리 경계 밖으로 삐져나가
+// 잘린 것처럼 보인다. 그래서 두 자리 숫자는 폭에 맞게 살짝 작게 그린다.
+function numberFontSize(number) {
+  const ratio = String(number).length >= 2 ? 0.27 : 0.34;
+  return Math.round(TILE_H * ratio);
+}
 const REVEAL_LIFT = Math.round(20 * CARD_SCALE); // 내 카드가 상대에게 들켰을 때 이만큼 위로 들어올려서 표시한다
 
 // 화면을 위(상대) / 가운데(매트) / 아래(주인공) 3단으로 나눈다.
@@ -210,6 +217,7 @@ export default class DaVinciCodeScene extends Phaser.Scene {
     this.selectedSlotPos = null;
     this.insightPickActive = false;
     this.menuOpen = false;
+    this.rulesOpen = false;
 
     this.humanStrategy.onNeedGuess = (obs) => {
       this.pendingUIUpdate = () => {
@@ -252,9 +260,9 @@ export default class DaVinciCodeScene extends Phaser.Scene {
       this.applyPendingUIUpdateIfIdle();
     };
 
-    // '심문 시작' 배너 -> 주인공 대사 한 번 -> 상대 대사 한 번(둘 다 한 글자씩
+    // '수사 시작' 배너 -> 주인공 대사 한 번 -> 상대 대사 한 번(둘 다 한 글자씩
     // 타이핑되는 연출) -> '선공 결정' 배너 -> 코인토스, 순서로 진행한다.
-    this.showBanner('심문 시작', `vs ${this.botName}`);
+    this.showBanner('수사 시작', `vs ${this.botName}`);
     this.time.delayedCall(2300, () => {
       this.typewriterText(this.playerDialogueText, '반드시 당신의 정체를 밝혀내겠어.', () => {
         this.time.delayedCall(900, () => {
@@ -412,6 +420,7 @@ export default class DaVinciCodeScene extends Phaser.Scene {
 
     const group = this.add.container(0, 0);
     group.setDepth(920);
+    this.dynamicLayer.add(group);
     const cards = [];
     for (let i = 0; i < count; i++) {
       const x = startX + i * step;
@@ -787,7 +796,7 @@ export default class DaVinciCodeScene extends Phaser.Scene {
     const centerYFrac = NUMBER_CENTER_Y_FRAC[isBlack ? 'black' : 'white'];
     const textY = -TILE_H / 2 + TILE_H * centerYFrac;
     const mark = this.add.text(0, showNumber ? textY : 0, showNumber ? String(block.number) : '', {
-      fontFamily: FONT_NUMBER, fontSize: `${Math.round(TILE_H * 0.34)}px`, color: textColor,
+      fontFamily: FONT_NUMBER, fontSize: `${numberFontSize(showNumber ? block.number : 0)}px`, color: textColor,
     }).setOrigin(0.5);
 
     const border = this.add.graphics();
@@ -850,7 +859,7 @@ export default class DaVinciCodeScene extends Phaser.Scene {
     shadow.fillStyle(0x000000, 0.35);
     shadow.fillRoundedRect(-TILE_W / 2 + 3, -TILE_H / 2 + 3, TILE_W, TILE_H, 6);
     const face = this.add.image(0, 0, backKey).setDisplaySize(TILE_W, TILE_H);
-    const label = this.add.text(0, 0, '', { fontFamily: FONT_NUMBER, fontSize: `${Math.round(TILE_H * 0.34)}px`, color: textColor }).setOrigin(0.5);
+    const label = this.add.text(0, 0, '', { fontFamily: FONT_NUMBER, fontSize: `${numberFontSize(block.number)}px`, color: textColor }).setOrigin(0.5);
 
     const drawFace = (revealed) => {
       if (revealed) {
@@ -941,6 +950,7 @@ export default class DaVinciCodeScene extends Phaser.Scene {
       fontFamily: FONT_BOLD, fontSize: '26px', color: '#e8c86a',
     }).setOrigin(0.5).setAlpha(0);
     cursor.setDepth(950);
+    this.dynamicLayer.add(cursor);
 
     this.tweens.add({ targets: cursor, alpha: 1, duration: 200 });
 
@@ -997,6 +1007,7 @@ export default class DaVinciCodeScene extends Phaser.Scene {
 
     const group = this.add.container(0, 0);
     group.setDepth(920);
+    this.dynamicLayer.add(group);
     const cards = [];
     for (let i = 0; i < count; i++) {
       const x = startX + i * step;
@@ -1134,6 +1145,7 @@ export default class DaVinciCodeScene extends Phaser.Scene {
       // 자리에서 일어난다 - 여기서 따로 중심을 맞춰줄 필요가 없다.
       const tile = this.makeTile(p.x, p.y, p.displayBlock, null);
       tile.setDepth(910);
+      this.dynamicLayer.add(tile);
       return { tile, homeX: tile.x, homeY: tile.y };
     });
 
@@ -1216,6 +1228,11 @@ export default class DaVinciCodeScene extends Phaser.Scene {
 
   render() {
     this.dynamicLayer.removeAll(true);
+    // 규칙 창은 씬 루트에 직접 그려서(위 removeAll로는 안 지워짐) 매번 직접 치운다.
+    if (this._rulesPopupObjects) {
+      this._rulesPopupObjects.forEach((o) => o.destroy());
+      this._rulesPopupObjects = null;
+    }
     // 뒤집기 같은 연출 오버레이가 "그 자리의 진짜 타일"을 잠시 숨길 수 있도록
     // side+index -> 타일 컨테이너 참조를 들고 있는다. 위 removeAll(true)가 매
     // 렌더마다 이전 타일을 파괴하므로 맵도 여기서 같이 새로 만든다.
@@ -1302,6 +1319,14 @@ export default class DaVinciCodeScene extends Phaser.Scene {
       this.dynamicLayer.add(this.makeSmallSkillButton(myBtnX - 78, menuBtnY, 70, 26, true, () => {
         this.scene.start('MapScene', { result: { bot: this.botName, win: false } });
       }, null, '나가기'));
+      this.dynamicLayer.add(this.makeSmallSkillButton(myBtnX - 78 - 78, menuBtnY, 70, 26, false, () => {
+        this.rulesOpen = true;
+        this.render();
+      }, null, '규칙'));
+    }
+
+    if (this.rulesOpen) {
+      this.drawRulesPopup();
     }
 
     if (this.mode === 'pick_number' && this.selectedSlotPos != null) {
@@ -1324,14 +1349,14 @@ export default class DaVinciCodeScene extends Phaser.Scene {
       const g = this.add.graphics();
       g.fillStyle(0x000000, 0.35);
       g.fillRect(panelX + 3, panelY + 3, panelW, panelH);
-      g.fillStyle(0x14304f, 0.96);
+      g.fillStyle(0x000000, 0.96);
       g.fillRect(panelX, panelY, panelW, panelH);
-      g.lineStyle(3, 0x3a6ff7, 1);
+      g.lineStyle(3, 0xe8c86a, 1);
       g.strokeRect(panelX, panelY, panelW, panelH);
       this.dynamicLayer.add(g);
 
       const title = this.add.text(panelX + panelW / 2, panelY + 10, '숫자 선택', {
-        fontFamily: FONT, fontSize: '10px', color: '#cfe0ff',
+        fontFamily: FONT, fontSize: '10px', color: '#ffffff',
       }).setOrigin(0.5, 0);
       this.dynamicLayer.add(title);
 
@@ -1350,11 +1375,11 @@ export default class DaVinciCodeScene extends Phaser.Scene {
       this.dynamicLayer.add(this.makeChoiceButton(ACTION_X, ACTION_Y, '계속 도전', () => {
         this.mode = 'idle';
         this.humanStrategy.resolveContinue(true);
-      }));
+      }, true));
       this.dynamicLayer.add(this.makeChoiceButton(ACTION_X + 170, ACTION_Y, '턴 넘기기', () => {
         this.mode = 'idle';
         this.humanStrategy.resolveContinue(false);
-      }));
+      }, true));
     }
 
     if (this.mode === 'wrong_guess_decision') {
@@ -1470,7 +1495,7 @@ export default class DaVinciCodeScene extends Phaser.Scene {
       const centerYFrac = NUMBER_CENTER_Y_FRAC[isBlack ? 'black' : 'white'];
       const textY = -TILE_H / 2 + TILE_H * centerYFrac;
       const text = this.add.text(0, textY, String(block.number), {
-        fontFamily: FONT_NUMBER, fontSize: `${Math.round(TILE_H * 0.34)}px`, color: textColor,
+        fontFamily: FONT_NUMBER, fontSize: `${numberFontSize(block.number)}px`, color: textColor,
       }).setOrigin(0.5);
       children.push(text);
     }
@@ -1533,15 +1558,16 @@ export default class DaVinciCodeScene extends Phaser.Scene {
     });
   }
 
+  // 상대 카드의 숫자(0~11)를 지목하는 버튼 - 검은 배경 + 흰 글자.
   makeNumberButton(x, y, n, onClick) {
     const w = 32;
     const h = 32;
     const g = this.add.graphics();
     g.fillStyle(0x000000, 0.3);
     g.fillRect(x + 2, y + 2, w, h);
-    g.fillStyle(0x3a6ff7, 1);
+    g.fillStyle(0x000000, 1);
     g.fillRect(x, y, w, h);
-    g.lineStyle(2, 0x1a1a1a, 1);
+    g.lineStyle(2, 0xe8c86a, 1);
     g.strokeRect(x, y, w, h);
     const text = this.add.text(x + w / 2, y + h / 2, String(n), { fontFamily: FONT_BOLD, fontSize: '14px', color: '#ffffff' }).setOrigin(0.5);
     const hitZone = this.add.zone(x, y, w, h).setOrigin(0, 0).setInteractive({ useHandCursor: true });
@@ -1549,15 +1575,17 @@ export default class DaVinciCodeScene extends Phaser.Scene {
     return this.add.container(0, 0, [g, text, hitZone]);
   }
 
-  makeChoiceButton(x, y, label, onClick) {
+  // dark: true면 검은 배경 + 흰 글자('계속 도전'/'턴 넘기기' 등 핵심 선택지용),
+  // 기본은 초록 배경(스킬/되감기 등 그 외 선택 버튼용).
+  makeChoiceButton(x, y, label, onClick, dark = false) {
     const w = 150;
     const h = 30;
     const g = this.add.graphics();
     g.fillStyle(0x000000, 0.3);
     g.fillRect(x + 3, y + 3, w, h);
-    g.fillStyle(0x2f9e6e, 1);
+    g.fillStyle(dark ? 0x000000 : 0x2f9e6e, 1);
     g.fillRect(x, y, w, h);
-    g.lineStyle(2, 0x1a1a1a, 1);
+    g.lineStyle(2, dark ? 0xe8c86a : 0x1a1a1a, 1);
     g.strokeRect(x, y, w, h);
     const text = this.add.text(x + w / 2, y + h / 2, label, { fontFamily: FONT, fontSize: '12px', color: '#ffffff' }).setOrigin(0.5);
     const hitZone = this.add.zone(x, y, w, h).setOrigin(0, 0).setInteractive({ useHandCursor: true });
@@ -1607,6 +1635,92 @@ export default class DaVinciCodeScene extends Phaser.Scene {
     const container = this.add.container(0, 0, [g, t]);
     container.setDepth(850);
     return container;
+  }
+
+  // 메뉴 안 '규칙' 버튼으로 여는 게임 설명 창. 화면 전체를 어둡게 덮어서 뒤의
+  // 카드/버튼이 클릭되지 않게 막고, 우측 상단 X를 눌러야 닫힌다.
+  //
+  // dynamicLayer 안이 아니라 씬 루트에 직접 그린다 - 턴 배너(depth 1000)나
+  // 카드 뒤집기/뽑기 연출(dynamicLayer.add를 안 거치는 것들)처럼 render()의
+  // dynamicLayer.removeAll() 주기 밖에서 자기 타이머로 사라지는 연출들이
+  // 씬 루트에 남아 있으면, dynamicLayer 안에 아무리 depth를 높여 넣어도
+  // (dynamicLayer 자체 depth가 0이라) 그 위로 못 올라가 뒤에서 비쳐 보인다.
+  drawRulesPopup() {
+    const boxX = 70;
+    const boxY = 36;
+    const boxW = 660;
+    const boxH = 528;
+
+    // 뒤의 카드/버튼 클릭을 막는 어두운 배경(그 자체도 클릭을 먹어서 아래로 안 새게 한다).
+    const backdrop = this.add.zone(0, 0, 800, 600).setOrigin(0, 0).setInteractive();
+    const dim = this.add.graphics();
+    dim.fillStyle(0x000000, 0.65);
+    dim.fillRect(0, 0, 800, 600);
+    dim.setDepth(1500);
+    backdrop.setDepth(1500);
+
+    const g = this.add.graphics();
+    g.fillStyle(0x000000, 0.35);
+    g.fillRect(boxX + 4, boxY + 4, boxW, boxH);
+    g.fillStyle(0x1a1410, 0.98);
+    g.fillRect(boxX, boxY, boxW, boxH);
+    g.lineStyle(3, 0xe8c86a, 1);
+    g.strokeRect(boxX, boxY, boxW, boxH);
+    g.setDepth(1501);
+
+    const title = this.add.text(boxX + boxW / 2, boxY + 26, '게임 규칙', {
+      fontFamily: FONT_BOLD, fontSize: '18px', color: '#e8c86a',
+    }).setOrigin(0.5).setDepth(1501);
+
+    const rulesText = [
+      '0~11 숫자가 적힌 흑/백 블록 24개로 1:1 대결합니다.',
+      '',
+      '시작할 때 각자 4장씩 받고, 자기 차례마다 카드 뭉치에서 1장을 뽑아',
+      '왼쪽부터 작은 수가 되도록 자기 패에 끼워 넣습니다.',
+      '',
+      '색은 항상 보이지만, 숫자는 공개되기 전까지 자신 외에는 보이지 않습니다.',
+      '',
+      '자기 차례에 상대의 미공개 블록 하나를 골라 숫자를 지목합니다.',
+      '맞히면 그 블록이 공개되고, "계속 도전" 또는 "턴 넘기기"를 고를 수',
+      '있습니다. 계속 도전하면 오답이 나올 때까지 계속 지목할 수 있습니다.',
+      '',
+      '틀리면 방금 뽑은 자신의 블록이 공개되고 턴이 상대에게 넘어갑니다.',
+      '',
+      '자신의 블록이 모두 공개되면 패배합니다.',
+      '',
+      '용의자(상대)를 이기면 그들이 가진 특수 능력을 얻어, 이후 대결에서',
+      '쓸 수 있습니다.',
+    ].join('\n');
+
+    const body = this.add.text(boxX + 24, boxY + 58, rulesText, {
+      fontFamily: FONT, fontSize: '13px', color: '#e8e2c8', lineSpacing: 9,
+      wordWrap: { width: boxW - 48 },
+    }).setDepth(1501);
+
+    // 우측 상단 닫기(X) 버튼 - 규칙을 다 읽고 나서야 닫도록 다른 곳엔 닫는 방법이 없다.
+    const closeSize = 30;
+    const closeX = boxX + boxW - closeSize - 10;
+    const closeY = boxY + 10;
+    const closeG = this.add.graphics();
+    closeG.fillStyle(0x2b2620, 1);
+    closeG.fillRect(closeX, closeY, closeSize, closeSize);
+    closeG.lineStyle(2, 0xe8c86a, 1);
+    closeG.strokeRect(closeX, closeY, closeSize, closeSize);
+    closeG.setDepth(1501);
+    const closeText = this.add.text(closeX + closeSize / 2, closeY + closeSize / 2, 'X', {
+      fontFamily: FONT_BOLD, fontSize: '16px', color: '#e8c86a',
+    }).setOrigin(0.5).setDepth(1501);
+    const closeZone = this.add.zone(closeX, closeY, closeSize, closeSize)
+      .setOrigin(0, 0).setInteractive({ useHandCursor: true });
+    closeZone.setDepth(1501);
+    closeZone.on('pointerdown', () => {
+      this.rulesOpen = false;
+      this.render();
+    });
+
+    // dynamicLayer 밖(씬 루트)에 직접 두므로, render()의 dynamicLayer.removeAll()로는
+    // 안 지워진다 - 다음 render() 맨 앞에서 직접 치워줘야 한다(render() 쪽 참고).
+    this._rulesPopupObjects = [backdrop, dim, g, title, body, closeG, closeText, closeZone];
   }
 
   // 상단/하단의 '캐릭터 초상' 자리 - 진짜 아트가 없으므로 격자 실루엣을 픽셀 단위로 채운다.
