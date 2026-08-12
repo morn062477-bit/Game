@@ -81,48 +81,6 @@ const DIALOGUE_SCRIPTS = {
   ],
 };
 
-// =============================================
-// 용의자 5명 조사 완료 후 마을 집합 대화
-// =============================================
-
-const FINAL_GATHER_SCRIPT = [
-    {
-        speaker: '사냥꾼',
-        text: '이제 조사할 만큼 한 것 같은데.\n결론을 내릴 때가 되지 않았소?',
-        portraitTexKey: 'npc-hunter'
-    },
-
-    {
-        speaker: '어부',
-        text: '나도 더는 이 일 때문에 일을 미룰 수 없소.\n범인이 누군지 알았다면 말해주시오.',
-        portraitTexKey: 'npc-fisher'
-    },
-
-    {
-        speaker: '이장 부인',
-        text: '모두의 이야기를 들으셨으니\n이제 답을 가지고 계시겠죠.',
-        portraitTexKey: 'npc-wife'
-    },
-
-    {
-        speaker: '화가',
-        text: '…….',
-        portraitTexKey: 'npc-painter'
-    },
-
-    {
-        speaker: '농부',
-        text: '탐정님.\n이제 누구의 짓인지 알아낸 겁니까?',
-        portraitTexKey: 'npc-farmer'
-    },
-
-    {
-        speaker: '탐정',
-        text: '네.\n이제 한 사람을 지목하겠습니다.',
-        isDetective: true
-    }
-];
-
 // npc id -> 화면에 보여줄 한글 이름. 맵 위 이름표(닉네임)와 대화창의 "[이름]" 표시에
 // 둘 다 쓴다. 여기 없는 id는 그냥 원래 id(영문)가 그대로 뜬다.
 const NPC_DISPLAY_NAME = {
@@ -192,9 +150,6 @@ class MapScene extends Phaser.Scene {
     // 다시 시작하기 위한 좌표. SuspectVNScene/DaVinciCodeScene이 넘겨줄 때만 있다.
     this.resumeX = data.returnX ?? null;
     this.resumeY = data.returnY ?? null;
-    // 최종 추리를 위해 마을로 강제 이동된 상태인지
-    this.endingGather = data.endingGather === true;
-    this.storyEvent = data.storyEvent || null;
   }
 
   preload() {
@@ -454,9 +409,7 @@ class MapScene extends Phaser.Scene {
       .map(obj => new Phaser.Geom.Polygon(obj.polygon.map(p => ({ x: obj.x + p.x, y: obj.y + p.y }))));
     // walkdisable 오브젝트는 사각형뿐 아니라 폴리곤으로도 그릴 수 있다(폴리곤은 Tiled에서
     // width/height가 0으로 저장되므로, 사각형 취급하면 사실상 아무 것도 막지 못한다).
-    const hiddenForestUnlocked = window.GameSave?.state?.data?.story?.hiddenForestUnlocked === true;
     this.walkdisableShapes = (map.getObjectLayer('walkdisable')?.objects || [])
-      .filter(obj => !(obj.name === 'hidden_forest_blocker' && hiddenForestUnlocked))
       .map(obj => obj.polygon
         ? new Phaser.Geom.Polygon(obj.polygon.map(p => ({ x: obj.x + p.x, y: obj.y + p.y })))
         : new Phaser.Geom.Rectangle(obj.x, obj.y, obj.width || 1, obj.height || 1));
@@ -679,37 +632,9 @@ class MapScene extends Phaser.Scene {
       this.bgmExtra = playBgm(extra.key, extra.volume);
     }
 
-    // =============================================
-    // 최종 집합 이벤트
-    // =============================================
-    if (this.endingGather) {
-
-        // 검은 화면에서 마을이 다시 나타난다.
-        this.cameras.main.fadeIn(
-            300,
-            0,
-            0,
-            0
-        );
-
-        // fadeIn이 끝난 뒤 집합 대화 시작
-        this.cameras.main.once(
-            Phaser.Cameras.Scene2D.Events.FADE_IN_COMPLETE,
-            () => {
-                this.startFinalGatherDialogue();
-            }
-        );
-    }
-    if (this.storyEvent === 'forestDiscovery') {
-      this.time.delayedCall(350, () => this.scene.start('EndingStoryScene', { route: 'forestDiscovery' }));
-    }
-    const story = window.GameSave?.state?.data?.story;
-    if (this.currentMapKey === 'map_08_body' && story?.phase === 'hidden_forest' && story.bodyFound === false) {
-      this.time.delayedCall(450, () => this.scene.start('EndingStoryScene', { route: 'bodyConfession' }));
-    }
     // 8. 오프닝 컷씬. 맨 처음 마을에 들어왔을 때(포탈을 타고 온 게 아니라 게임을 막 시작했을
     // 때)만 한 번 재생한다.
-    if (this.currentMapKey === 'map_01_village' && !this.fromMapKey && !hasPlayedIntro &&  !this.endingGather ) {
+    if (this.currentMapKey === 'map_01_village' && !this.fromMapKey && !hasPlayedIntro) {
       hasPlayedIntro = true;
       this.playIntroCutscene(map);
     }
@@ -865,16 +790,6 @@ class MapScene extends Phaser.Scene {
       this.physics.add.existing(zone, true);
 
       this.physics.add.overlap(this.player, zone, () => {
-        if (targetMap === 'map_08_body'
-          && window.GameSave?.state?.data?.story?.hiddenForestUnlocked !== true) {
-          if (!this.portalLockNotice || this.time.now > this.portalLockNotice) {
-            this.portalLockNotice = this.time.now + 1500;
-            this.interactText.setText('안쪽은 너무 어두워 들어갈 수 없다.').setVisible(true);
-          }
-          return;
-        }
-        if (this.portalTransitioning) return;
-        this.portalTransitioning = true;
         this.scene.restart({ mapKey: targetMap, fromMapKey: this.currentMapKey });
       });
     });
@@ -1020,70 +935,6 @@ class MapScene extends Phaser.Scene {
     }
   }
 
-  // =============================================
-// 최종 추리 직전 마을 집합 대화
-// =============================================
-startFinalGatherDialogue() {
-    const save =
-        window.GameSave?.state?.data;
-
-    if (!save) {
-        console.warn(
-            '[최종 집합] 세이브 데이터를 찾을 수 없습니다.'
-        );
-        return;
-    }
-
-    // 같은 이벤트가 두 번 재생되지 않도록
-    // 실제 대화가 시작되는 순간 기록한다.
-    save.story.finalGatherPlayed = true;
-
-    window.GameSave.saveGame().catch((error) => {
-        console.error(
-            '[최종 집합] 진행상태 저장 실패:',
-            error
-        );
-    });
-
-    // 플레이어 이동 잠금
-    this.isTalking = true;
-
-    this.interactText
-        .setText('')
-        .setVisible(false);
-
-    // 일반 NPC 한 명과 대화하는 게 아니므로 초기화
-    this.currentNpcData = null;
-    this.currentNpcName = null;
-    this.npcPortraitTexKey = null;
-
-    // 집합 대본 복사
-    this.dialogueLines =
-        FINAL_GATHER_SCRIPT.map(line => ({ ...line }));
-
-    this.dialogueIndex = 0;
-
-    // 이 대화가 끝났을 때 실행할 작업
-    this.dialogueCompleteCallback = () => {
-        save.story.phase = 'final_deduction';
-
-        window.GameSave.saveGame().catch((error) => {
-            console.error(
-                '[최종 집합] final_deduction 저장 실패:',
-                error
-            );
-        });
-
-        console.log(
-            '[최종 집합] 대화 완료 → final_deduction'
-        );
-        this.scale.resize(960, 540);
-        this.scene.start('FinalDeductionScene');
-    };
-
-    this.showDialogueLine();
-}
-
   // --- NPC 대화 ---
   // DIALOGUE_SCRIPTS[npcData.id]의 각 항목은 두 형태를 쓸 수 있다:
   //   - 그냥 문자열: NPC 혼자 하는 대사 한 줄 (예전 방식 그대로, 예: saint).
@@ -1125,9 +976,8 @@ startFinalGatherDialogue() {
 
     // 초상화 우선순위: 1) 대화창 전용 일러스트(DIALOGUE_ILLUST_BY_NPC) 2) 없으면 맵에
     // 스폰할 때 쓴 걷기 스프라이트(탐정 질문 줄은 플레이어 스프라이트) 3) 그것도 없으면 빈 칸.
-    const illustKey = line.isDetective ? DETECTIVE_ILLUST_KEY: null;
-
-    const spriteTexKey = line.isDetective ? 'player' : (line.portraitTexKey ||this.npcPortraitTexKey);
+    const illustKey = line.isDetective ? DETECTIVE_ILLUST_KEY : DIALOGUE_ILLUST_BY_NPC[this.currentNpcData?.id];
+    const spriteTexKey = line.isDetective ? 'player' : this.npcPortraitTexKey;
     const { size } = this.dialoguePortraitBox;
     if (illustKey && this.textures.exists(illustKey)) {
       this.dialoguePortrait.setTexture(illustKey).setVisible(true);
@@ -1155,7 +1005,6 @@ startFinalGatherDialogue() {
   // 애초에 여기로 안 오고 SuspectVNScene으로 바로 가서 거기서 "수사하기" 버튼을 눌러야만
   // 다빈치코드로 넘어간다 - 예전엔 여기서도 무조건 미니게임을 켜버리는 버그가 있었다.
   endDialogue() {
-    const completedNpcId = this.currentNpcData?.id;
     this.isTalking = false;
     this.dialogueBox.setVisible(false);
     this.dialoguePortraitBg.setVisible(false);
@@ -1163,32 +1012,6 @@ startFinalGatherDialogue() {
     this.dialogueNameText.setVisible(false);
     this.dialogueText.setVisible(false);
     this.dialogueHint.setVisible(false);
-
-    // 집합 대화처럼
-    // 대화 종료 후 실행해야 할 작업이 있다면 실행
-    const callback =
-      this.dialogueCompleteCallback;
-
-    this.dialogueCompleteCallback = null;
-
-    if (callback) {
-        callback();
-    }
-
-    const coverup = window.GameSave?.state?.data?.story?.painterCoverup;
-    if (coverup && completedNpcId) {
-      let changed = false;
-      if (completedNpcId === 'boy' || completedNpcId === 'girl') {
-        changed = !coverup.alibiGap || !coverup.farmerRelationship;
-        coverup.alibiGap = true;
-        coverup.farmerRelationship = true;
-      }
-      if (completedNpcId === 'hunter') {
-        changed = changed || !coverup.bloodyTowel;
-        coverup.bloodyTowel = true;
-      }
-      if (changed) window.GameSave.saveGame().catch(error => console.error('[은폐 단서] 저장 실패:', error));
-    }
   }
 
   // --- 오프닝 컷씬 ---

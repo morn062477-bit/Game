@@ -211,7 +211,6 @@ continueButton.addEventListener(
             // 다시 볼 필요 없다 - 재생 중이면 즉시 건너뛰고 바로 조작권을 돌려준다.
             await window.skipPrologueAndStart();
             window.startGame();
-            window.resumeStoryFromSave();
 
         } catch (error) {
             console.error(error);
