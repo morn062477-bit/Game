@@ -11,6 +11,10 @@ const TILE_W = Math.round(58 * CARD_SCALE);
 const TILE_H = Math.round(84 * CARD_SCALE);
 const FONT = 'Galmuri9, monospace';
 const FONT_BOLD = 'Galmuri11, monospace';
+const FONT_NUMBER = 'Blacksword, serif'; // 카드 숫자 전용 고딕 폰트
+// 카드 앞면 템플릿 이미지에서 숫자가 들어갈 자리의 중심 y위치(카드 높이 대비 비율).
+// 흰 카드/검은 카드 원본 그림의 여백이 서로 살짝 달라서 따로 둔다.
+const NUMBER_CENTER_Y_FRAC = { white: 0.565, black: 0.59 };
 const REVEAL_LIFT = Math.round(20 * CARD_SCALE); // 내 카드가 상대에게 들켰을 때 이만큼 위로 들어올려서 표시한다
 
 // 화면을 위(상대) / 가운데(매트) / 아래(주인공) 3단으로 나눈다.
@@ -115,12 +119,24 @@ export default class DaVinciCodeScene extends Phaser.Scene {
     this.load.image('coinFaceA', `${base}assets/coin_face_a.png`);
     this.load.image('coinFaceB', `${base}assets/coin_face_b.png`);
 
-    // 배경(원목 테이블) / 매트(초록 카드 매트) - 사용자가 제공한 그림.
+    // 배경(원목 테이블) / 매트(초록 카드 매트) / 카드 앞뒤 디자인 - 사용자가 제공한 그림.
+    // 카드 앞면은 가운데 숫자 자리를 비워둔 템플릿이고, 실제 숫자는 Blacksword
+    // 폰트로 그 위에 렌더링한다(makeTile 참고).
     this.load.image('tableWood', `${base}assets/table/wood_bg.png`);
     this.load.image('tableMat', `${base}assets/table/mat_green.png`);
+    this.load.image('cardFrontWhite', `${base}assets/table/card_front_white.png`);
+    this.load.image('cardFrontBlack', `${base}assets/table/card_front_black.png`);
+    this.load.image('cardBackWhite', `${base}assets/table/card_back_white.png`);
+    this.load.image('cardBackBlack', `${base}assets/table/card_back_black.png`);
   }
 
   create() {
+    // Blacksword는 웹폰트라 브라우저가 비동기로 받아온다 - 카드 숫자를 그리기 전에
+    // 미리 로드를 걸어둬서, 첫 렌더 때 폰트가 아직 없어 기본 폰트로 잘못 그려지는
+    // 것을 최대한 피한다(대전 시작까지 몇 초 연출이 있어 대부분 그 사이 끝난다).
+    if (document.fonts && document.fonts.load) {
+      document.fonts.load('40px Blacksword').catch(() => {});
+    }
     this.drawWoodBackground();
     this.drawTableMat();
 
@@ -756,21 +772,22 @@ export default class DaVinciCodeScene extends Phaser.Scene {
     const cy = y + TILE_H / 2;
 
     const isBlack = !block || block.color === Color.BLACK;
-    const bg = isBlack ? 0x1f1f22 : 0xf3efe2;
-    const textColor = isBlack ? '#f0ece0' : '#1a1a1a';
+    const textColor = isBlack ? '#d6ccb8' : '#0c2512';
+    const cardKey = showNumber
+      ? (isBlack ? 'cardFrontBlack' : 'cardFrontWhite')
+      : (isBlack ? 'cardBackBlack' : 'cardBackWhite');
 
     const hiddenKey = this.suppressTile(side, index);
 
-    const face = this.add.graphics();
-    face.fillStyle(0x000000, 0.3);
-    face.fillRect(-TILE_W / 2 + 3, -TILE_H / 2 + 3, TILE_W, TILE_H);
-    face.fillStyle(bg, 1);
-    face.fillRect(-TILE_W / 2, -TILE_H / 2, TILE_W, TILE_H);
-    face.lineStyle(3, 0x2b2620, 1);
-    face.strokeRect(-TILE_W / 2, -TILE_H / 2, TILE_W, TILE_H);
+    const shadow = this.add.graphics();
+    shadow.fillStyle(0x000000, 0.35);
+    shadow.fillRoundedRect(-TILE_W / 2 + 3, -TILE_H / 2 + 3, TILE_W, TILE_H, 6);
+    const face = this.add.image(0, 0, cardKey).setDisplaySize(TILE_W, TILE_H);
 
-    const mark = this.add.text(0, 0, showNumber ? String(block.number) : '', {
-      fontFamily: FONT_BOLD, fontSize: '20px', color: textColor,
+    const centerYFrac = NUMBER_CENTER_Y_FRAC[isBlack ? 'black' : 'white'];
+    const textY = -TILE_H / 2 + TILE_H * centerYFrac;
+    const mark = this.add.text(0, showNumber ? textY : 0, showNumber ? String(block.number) : '', {
+      fontFamily: FONT_NUMBER, fontSize: `${Math.round(TILE_H * 0.34)}px`, color: textColor,
     }).setOrigin(0.5);
 
     const border = this.add.graphics();
@@ -781,7 +798,7 @@ export default class DaVinciCodeScene extends Phaser.Scene {
     };
     drawBorder(1);
 
-    const overlay = this.add.container(cx, cy, [face, mark, border]);
+    const overlay = this.add.container(cx, cy, [shadow, face, mark, border]);
     overlay.setDepth(900);
 
     const shakeOffsets = [7, -7, 5, -5, 3, -3, 0];
@@ -822,39 +839,34 @@ export default class DaVinciCodeScene extends Phaser.Scene {
     const cx = x + TILE_W / 2;
     const cy = y + TILE_H / 2;
 
-    const bg = block.color === Color.BLACK ? 0x1f1f22 : 0xf3efe2;
-    const borderColor = block.color === Color.BLACK ? 0x50504e : 0x2b2620;
-    const textColor = block.color === Color.BLACK ? '#f0ece0' : '#1a1a1a';
+    const isBlack = block.color === Color.BLACK;
+    const textColor = isBlack ? '#d6ccb8' : '#0c2512';
+    const backKey = isBlack ? 'cardBackBlack' : 'cardBackWhite';
+    const frontKey = isBlack ? 'cardFrontBlack' : 'cardFrontWhite';
+    const centerYFrac = NUMBER_CENTER_Y_FRAC[isBlack ? 'black' : 'white'];
+    const textY = -TILE_H / 2 + TILE_H * centerYFrac;
 
-    const g = this.add.graphics();
-    const label = this.add.text(0, 0, '', { fontFamily: FONT_BOLD, fontSize: '20px', color: textColor }).setOrigin(0.5);
+    const shadow = this.add.graphics();
+    shadow.fillStyle(0x000000, 0.35);
+    shadow.fillRoundedRect(-TILE_W / 2 + 3, -TILE_H / 2 + 3, TILE_W, TILE_H, 6);
+    const face = this.add.image(0, 0, backKey).setDisplaySize(TILE_W, TILE_H);
+    const label = this.add.text(0, 0, '', { fontFamily: FONT_NUMBER, fontSize: `${Math.round(TILE_H * 0.34)}px`, color: textColor }).setOrigin(0.5);
 
     const drawFace = (revealed) => {
-      g.clear();
-      g.fillStyle(0x000000, 0.3);
-      g.fillRect(-TILE_W / 2 + 3, -TILE_H / 2 + 3, TILE_W, TILE_H);
       if (revealed) {
-        g.fillStyle(bg, 1);
-        g.fillRect(-TILE_W / 2, -TILE_H / 2, TILE_W, TILE_H);
-        g.lineStyle(3, borderColor, 1);
-        g.strokeRect(-TILE_W / 2, -TILE_H / 2, TILE_W, TILE_H);
-        label.setColor(textColor);
+        face.setTexture(frontKey);
+        label.setPosition(0, textY);
         label.setText(String(block.number));
       } else {
-        // 뒤집기 전 '숨김' 상태도 실제 타일(makeTile)과 완전히 똑같이 그린다 - 색은
-        // 이미 공개돼 있으니 그대로 칠하고 숫자만 비운다. 예전엔 이 부분이 무조건
-        // 검정+물음표로 하드코딩돼 있어서, 흰 카드가 뒤집히기 시작하는 순간 갑자기
-        // 색이 바뀌어 카드 2장이 겹친 것처럼 보이는 원인이었다.
-        g.fillStyle(bg, 1);
-        g.fillRect(-TILE_W / 2, -TILE_H / 2, TILE_W, TILE_H);
-        g.lineStyle(3, borderColor, 1);
-        g.strokeRect(-TILE_W / 2, -TILE_H / 2, TILE_W, TILE_H);
+        // 뒤집기 전엔 뒷면 그림을 그대로 보여준다 - 실제 손패 타일(makeTile)의
+        // 미공개 상태와 똑같아서, 뒤집히기 직전까지 다른 곳과 이질감이 없다.
+        face.setTexture(backKey);
         label.setText('');
       }
     };
     drawFace(false);
 
-    const overlay = this.add.container(cx, cy, [g, label]);
+    const overlay = this.add.container(cx, cy, [shadow, face, label]);
     overlay.setDepth(900);
 
     // 이 오버레이는 render()가 이미 그려둔 '진짜' 타일 위에 얹힌다. 오버레이가
@@ -1438,23 +1450,31 @@ export default class DaVinciCodeScene extends Phaser.Scene {
   // 카드에 호버 확대 효과를 줄 때, 카드 자기 자신을 기준으로 커지게 하려면
   // (다른 방향으로 밀리지 않고 제자리에서 커지려면) 컨테이너의 원점이 카드
   // 중심과 같아야 하기 때문이다.
+  // 미공개(block.number === null)면 카드 뒷면 그림을, 공개면 카드 앞면 그림 +
+  // Blacksword 폰트로 그린 숫자를 쓴다. 흰/검 카드 색은 block.color로 고른다.
   makeTile(x, y, block, onClick) {
-    const bg = block.color === Color.BLACK ? 0x1f1f22 : 0xf3efe2;
-    const border = 0x2b2620;
-    const g = this.add.graphics();
-    g.fillStyle(0x000000, 0.3);
-    g.fillRect(-TILE_W / 2 + 3, -TILE_H / 2 + 3, TILE_W, TILE_H);
-    g.fillStyle(bg, 1);
-    g.fillRect(-TILE_W / 2, -TILE_H / 2, TILE_W, TILE_H);
-    g.lineStyle(3, border, 1);
-    g.strokeRect(-TILE_W / 2, -TILE_H / 2, TILE_W, TILE_H);
+    const isHidden = block.number === null;
+    const isBlack = block.color === Color.BLACK;
+    const cardKey = isHidden
+      ? (isBlack ? 'cardBackBlack' : 'cardBackWhite')
+      : (isBlack ? 'cardFrontBlack' : 'cardFrontWhite');
 
-    // 미공개 카드는 물음표 없이 색만으로 표시한다.
-    const label = block.number === null ? '' : String(block.number);
-    const textColor = block.color === Color.BLACK ? '#f0ece0' : '#1a1a1a';
-    const text = this.add.text(0, 0, label, { fontFamily: FONT_BOLD, fontSize: '20px', color: textColor }).setOrigin(0.5);
+    const shadow = this.add.graphics();
+    shadow.fillStyle(0x000000, 0.35);
+    shadow.fillRoundedRect(-TILE_W / 2 + 3, -TILE_H / 2 + 3, TILE_W, TILE_H, 6);
+    const face = this.add.image(0, 0, cardKey).setDisplaySize(TILE_W, TILE_H);
 
-    const children = [g, text];
+    const children = [shadow, face];
+    if (!isHidden) {
+      const textColor = isBlack ? '#d6ccb8' : '#0c2512';
+      const centerYFrac = NUMBER_CENTER_Y_FRAC[isBlack ? 'black' : 'white'];
+      const textY = -TILE_H / 2 + TILE_H * centerYFrac;
+      const text = this.add.text(0, textY, String(block.number), {
+        fontFamily: FONT_NUMBER, fontSize: `${Math.round(TILE_H * 0.34)}px`, color: textColor,
+      }).setOrigin(0.5);
+      children.push(text);
+    }
+
     let hitZone = null;
     if (onClick) {
       hitZone = this.add.zone(0, 0, TILE_W, TILE_H).setOrigin(0.5).setInteractive({ useHandCursor: true });
@@ -1484,21 +1504,17 @@ export default class DaVinciCodeScene extends Phaser.Scene {
     return container;
   }
 
-  // 남은 카드 더미 표시나 draw-pick 스프레드에 쓰는 카드 뒷면 - 흑/백 단색.
+  // 남은 카드 더미 표시나 draw-pick 스프레드에 쓰는 카드 뒷면 그림.
   // makeTile과 마찬가지로 컨테이너 원점을 카드 중심에 둔다 - 카드 뭉치에서
   // 뽑을 카드를 고를 때도 호버로 확대하면 카드 자기 자신을 기준으로 커져야
   // 하기 때문이다.
   makeDeckCardBack(x, y, color = Color.BLACK) {
-    const bg = color === Color.BLACK ? 0x1f1f22 : 0xf3efe2;
-    const border = color === Color.BLACK ? 0x50504e : 0x2b2620;
-    const g = this.add.graphics();
-    g.fillStyle(0x000000, 0.3);
-    g.fillRect(-TILE_W / 2 + 3, -TILE_H / 2 + 3, TILE_W, TILE_H);
-    g.fillStyle(bg, 1);
-    g.fillRect(-TILE_W / 2, -TILE_H / 2, TILE_W, TILE_H);
-    g.lineStyle(3, border, 1);
-    g.strokeRect(-TILE_W / 2, -TILE_H / 2, TILE_W, TILE_H);
-    return this.add.container(x + TILE_W / 2, y + TILE_H / 2, [g]);
+    const shadow = this.add.graphics();
+    shadow.fillStyle(0x000000, 0.35);
+    shadow.fillRoundedRect(-TILE_W / 2 + 3, -TILE_H / 2 + 3, TILE_W, TILE_H, 6);
+    const backTexture = color === Color.BLACK ? 'cardBackBlack' : 'cardBackWhite';
+    const face = this.add.image(0, 0, backTexture).setDisplaySize(TILE_W, TILE_H);
+    return this.add.container(x + TILE_W / 2, y + TILE_H / 2, [shadow, face]);
   }
 
   // 새로 뽑힌 카드가 손패에 나타날 때 톡 튀어오르듯 커지는 등장 연출.
@@ -1634,7 +1650,7 @@ export default class DaVinciCodeScene extends Phaser.Scene {
   }
 
   drawTableMat() {
-    const margin = 10;
+    const margin = 8; // 매트를 살짝(약 2px씩) 더 크게
     const cx = 400;
     const cy = MAT_Y + MAT_H / 2;
     this.add.image(cx, cy, 'tableMat').setDisplaySize(800 - margin * 2, MAT_H - margin * 2);

@@ -6,6 +6,13 @@
   <!-- 갈무리: 한글을 지원하는 도트(픽셀) 폰트. 모든 UI 텍스트를 이 폰트로 그린다. -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri@latest/dist/galmuri.css">
   <style>
+    /* Blacksword: 카드 숫자 전용 고딕 폰트 (개인 사용 무료, cdnfonts.com에서 받아 직접 호스팅). */
+    @font-face {
+      font-family: 'Blacksword';
+      src: url('/assets/fonts/Blacksword.woff') format('woff');
+      font-weight: normal;
+      font-style: normal;
+    }
     html, body { margin: 0; background: #0b0c10; display: flex; justify-content: center; }
     #game-container { margin-top: 20px; }
     canvas { image-rendering: pixelated; }
