@@ -15,7 +15,6 @@
 
     <div id="auth-box">
 
-        <!-- "로그인"/"회원가입"으로 auth-ui.js가 바꿔치기하는 제목 -->
         <h1 id="auth-title">로그인</h1>
 
         <!-- 로그인 -->
@@ -35,9 +34,15 @@
                 required
             >
 
-            <button type="submit">
-                로그인
-            </button>
+            <div class="auth-actions">
+                <button type="submit">
+                    로그인
+                </button>
+
+                <button id="go-signup" type="button">
+                    회원가입
+                </button>
+            </div>
 
         </form>
 
@@ -70,23 +75,17 @@
                 required
             >
 
-            <button type="submit">
-                회원가입
-            </button>
+            <div class="auth-actions">
+                <button id="go-login" type="button">
+                    로그인
+                </button>
+
+                <button type="submit">
+                    회원가입
+                </button>
+            </div>
 
         </form>
-
-
-        <!-- 로그인/회원가입 화면 전환 -->
-        <div class="auth-actions">
-            <button id="go-login" type="button">
-                로그인
-            </button>
-
-            <button id="go-signup" type="button">
-                회원가입
-            </button>
-        </div>
 
 
         <p id="auth-message"></p>
