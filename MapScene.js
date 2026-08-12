@@ -193,6 +193,9 @@ const NPC_DISPLAY_NAME = {
   body: '시체'
 };
 
+// 최종 추리로 이어지는 5명의 용의자. 화면 오른쪽 위 단서 UI에 이 순서대로 표시한다.
+const CLUE_SUSPECT_ORDER = ['wife', 'hunter', 'farmer', 'painter', 'fisher'];
+
 // npc id -> 대화창 초상화용 일러스트 텍스처 키(preload에서 "dialogue-ill-*"로 로드해둔 것).
 // 여기 없는 npc(예: farmer_baby, village_woman1/2)는 기존처럼 걷기 스프라이트를 대신 쓴다.
 const DIALOGUE_ILLUST_BY_NPC = {
@@ -709,6 +712,11 @@ class MapScene extends Phaser.Scene {
       fontSize: uiFont(16), fill: '#ffffff',
     }).setOrigin(0.5, 1).setScrollFactor(0).setDepth(3001).setVisible(false);
 
+    // 화면 오른쪽 위 단서 확보 현황. 용의자를 심문해서 질문을 확정지을 때마다
+    // (SuspectChoiceScene.js) 세이브에 clueObtained가 기록되는데, 그 진행 상황을
+    // 마을을 돌아다니는 동안 한눈에 보이게 목록으로 띄워둔다.
+    this.setupClueTracker(uiX, uiY, uiLen, uiFont);
+
     this.isTalking = false;
     this.isCutscene = false;
     this.nearNPC = null;
@@ -1215,6 +1223,55 @@ startFinalGatherDialogue() {
     this.showDialogueLine();
 }
 
+  // --- 단서 확보 현황 UI ---
+  // 화면 오른쪽 위에 "단서 N/5"와 용의자별 확보 여부 목록을 띄운다. SuspectChoiceScene에서
+  // 심문 질문을 확정지을 때마다 세이브의 suspects[id].clueObtained가 true로 바뀌므로,
+  // 여기서는 그 값을 읽어서 보여주기만 하면 된다 - 맵으로 돌아올 때마다 create()가 다시
+  // 불리니(scene.start/restart) 그때그때 최신 상태로 새로 그려진다.
+  setupClueTracker(uiX, uiY, uiLen, uiFont) {
+    const rowH = 22;
+    const boxW = 168;
+    const boxH = 34 + CLUE_SUSPECT_ORDER.length * rowH;
+    const boxX = this.cameras.main.width - boxW - 16;
+    const boxY = 16;
+
+    this.clueTrackerBg = this.add.graphics().setScrollFactor(0).setDepth(2500);
+    this.clueTrackerBg.fillStyle(0x000000, 0.55);
+    this.clueTrackerBg.fillRoundedRect(uiX(boxX), uiY(boxY), uiLen(boxW), uiLen(boxH), uiLen(8));
+    this.clueTrackerBg.lineStyle(uiLen(2), 0xb8860b, 0.8);
+    this.clueTrackerBg.strokeRoundedRect(uiX(boxX), uiY(boxY), uiLen(boxW), uiLen(boxH), uiLen(8));
+
+    this.clueTrackerTitle = this.add.text(uiX(boxX + 12), uiY(boxY + 8), '', {
+      fontSize: uiFont(13), fill: '#e8c86a', fontStyle: 'bold',
+    }).setScrollFactor(0).setDepth(2501);
+
+    this.clueTrackerRows = CLUE_SUSPECT_ORDER.map((npcId, i) => this.add.text(
+      uiX(boxX + 12), uiY(boxY + 30 + i * rowH), '', { fontSize: uiFont(12), fill: '#999999' },
+    ).setScrollFactor(0).setDepth(2501));
+
+    this.refreshClueTracker();
+  }
+
+  setClueTrackerVisible(visible) {
+    this.clueTrackerBg?.setVisible(visible);
+    this.clueTrackerTitle?.setVisible(visible);
+    this.clueTrackerRows?.forEach(row => row.setVisible(visible));
+  }
+
+  refreshClueTracker() {
+    if (!this.clueTrackerRows) return;
+    const suspects = window.GameSave?.state?.data?.suspects || {};
+    let obtainedCount = 0;
+    CLUE_SUSPECT_ORDER.forEach((npcId, i) => {
+      const obtained = suspects[npcId]?.clueObtained === true;
+      if (obtained) obtainedCount += 1;
+      const name = NPC_DISPLAY_NAME[npcId] || npcId;
+      this.clueTrackerRows[i].setText(`${obtained ? '☑' : '☐'} ${name}`);
+      this.clueTrackerRows[i].setColor(obtained ? '#ffe9a8' : '#999999');
+    });
+    this.clueTrackerTitle.setText(`단서 ${obtainedCount}/${CLUE_SUSPECT_ORDER.length}`);
+  }
+
   // --- NPC 대화 ---
   // DIALOGUE_SCRIPTS[npcData.id]의 각 항목은 두 형태를 쓸 수 있다:
   //   - 그냥 문자열: NPC 혼자 하는 대사 한 줄 (예전 방식 그대로, 예: saint).
@@ -1329,6 +1386,9 @@ startFinalGatherDialogue() {
   playIntroCutscene(map) {
     this.isCutscene = true;
     this.introSkipped = false;
+    // 아직 조사를 시작하기도 전인 오프닝 컷씬 화면에 "단서 0/5" 상자가 겹쳐 보이면
+    // 어색하므로, 컷씬이 끝나고 조작권을 돌려줄 때까지 잠깐 숨겨둔다.
+    this.setClueTrackerVisible(false);
     // 스킵(Enter) 시 곧바로 이 자리로 보내야 하므로, 옮기기 전 위치를 미리 기억해둔다.
     this.introFinalX = this.player.x;
     this.introFinalY = this.player.y;
@@ -1562,6 +1622,7 @@ startFinalGatherDialogue() {
       this.lastValidPos = { x: this.player.x, y: this.player.y };
       cam.startFollow(this.player);
       this.isCutscene = false;
+      this.setClueTrackerVisible(true);
     })().catch(err => {
       // 컷씬 도중 뭔가 터지면 플레이어가 영원히 숨겨진 채로 남아 "탐정이 아예 없는"
       // 상태가 될 수 있어서, 실패해도 최소한 조작권은 반드시 돌려준다.
@@ -1576,6 +1637,7 @@ startFinalGatherDialogue() {
       this.lastValidPos = { x: this.player.x, y: this.player.y };
       cam.startFollow(this.player);
       this.isCutscene = false;
+      this.setClueTrackerVisible(true);
     });
   }
 
@@ -1614,5 +1676,6 @@ startFinalGatherDialogue() {
     this.lastValidPos = { x: this.introFinalX, y: this.introFinalY };
     this.cameras.main.startFollow(this.player);
     this.isCutscene = false;
+    this.setClueTrackerVisible(true);
   }
 }
