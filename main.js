@@ -126,8 +126,7 @@ function resumeStoryFromSave() {
   } else if (phase === 'final_deduction') {
     mapScene.scene.start('FinalDeductionScene');
   } else if (phase === 'farmer_escape') {
-    // 이어하기에서도 숲으로 자동 이동하지 않고 마을에서 직접 추적을 재개한다.
-    mapScene.scene.restart({ mapKey: 'map_01_village' });
+    mapScene.scene.restart({ mapKey: 'map_02_forest', storyEvent: 'forestDiscovery' });
   } else if (phase === 'hidden_forest') {
     mapScene.scene.restart({ mapKey: 'map_02_forest' });
   } else if (phase === 'confession') {

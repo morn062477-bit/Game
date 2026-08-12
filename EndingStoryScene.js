@@ -177,9 +177,7 @@ class EndingStoryScene extends Phaser.Scene {
       await this.safeSave();
       this.cameras.main.fadeOut(300, 0, 0, 0);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
-        // 농부가 도망친 뒤 곧바로 숲으로 순간이동시키지 않는다. 마을에서 조작권을
-        // 돌려주고, 플레이어가 직접 숲 입구까지 추적하게 한다.
-        this.scene.start('MapScene', { mapKey: 'map_01_village' });
+        this.scene.start('MapScene', { mapKey: 'map_02_forest', storyEvent: 'forestDiscovery' });
       });
       return;
     }
@@ -189,7 +187,12 @@ class EndingStoryScene extends Phaser.Scene {
       save.story.phase = 'hidden_forest';
       this.replaceRewardClue(save, '고장난 농부의 랜턴', '고쳐진 농부의 랜턴');
       await this.safeSave();
-      this.scene.start('MapScene', { mapKey: 'map_02_forest' });
+      // 랜턴 수리 뒤 숲 맵으로 돌아가 탐정이 숨겨진 입구까지 실제로 걸어가는
+      // 컷신을 보여준 다음 시체 맵으로 전환한다.
+      this.cameras.main.fadeOut(300, 0, 0, 0);
+      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+        this.scene.start('MapScene', { mapKey: 'map_02_forest', storyEvent: 'walkToHiddenForest' });
+      });
       return;
     }
     if (this.script.next === 'endingBranch') {

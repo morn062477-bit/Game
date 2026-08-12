@@ -713,6 +713,9 @@ class MapScene extends Phaser.Scene {
       || (this.currentMapKey === 'map_02_forest' && story?.phase === 'farmer_escape')) {
       this.time.delayedCall(350, () => this.scene.start('EndingStoryScene', { route: 'forestDiscovery' }));
     }
+    if (this.currentMapKey === 'map_02_forest' && this.storyEvent === 'walkToHiddenForest') {
+      this.time.delayedCall(350, () => this.playHiddenForestWalkCutscene());
+    }
     if (this.currentMapKey === 'map_08_body' && story?.phase === 'hidden_forest' && story.bodyFound === false) {
       this.time.delayedCall(450, () => this.scene.start('EndingStoryScene', { route: 'bodyConfession' }));
     }
@@ -723,6 +726,61 @@ class MapScene extends Phaser.Scene {
       hasPlayedIntro = true;
       this.playIntroCutscene(map);
     }
+  }
+
+  // 랜턴을 고친 뒤 탐정이 숲 아래쪽 시작점에서 북쪽의 숨겨진 입구까지 걸어가는 장면.
+  // 물리 충돌은 잠시 끄고 숲길 중심을 따라 여러 지점을 순서대로 이동시킨다.
+  playHiddenForestWalkCutscene() {
+    if (this.isCutscene || this.currentMapKey !== 'map_02_forest') return;
+
+    this.isCutscene = true;
+    this.portalTransitioning = true;
+    this.player.body.setVelocity(0);
+    this.player.body.enable = false;
+    this.player.setDepth(2000);
+    this.interactText.setText('').setVisible(false);
+
+    const path = [
+      { x: 1549, y: 1810 },
+      { x: 1580, y: 1510 },
+      { x: 1600, y: 1280 },
+      { x: 1710, y: 1120 },
+      { x: 1660, y: 930 },
+      { x: 1545, y: 760 },
+      { x: 1555, y: 535 },
+    ];
+
+    const walkNext = (index) => {
+      if (index >= path.length) {
+        this.player.anims.stop();
+        this.player.setFrame(15);
+        this.cameras.main.fadeOut(350, 0, 0, 0);
+        this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+          this.scene.restart({ mapKey: 'map_08_body', fromMapKey: 'map_02_forest' });
+        });
+        return;
+      }
+
+      const target = path[index];
+      const dx = target.x - this.player.x;
+      const dy = target.y - this.player.y;
+      const direction = Math.abs(dx) > Math.abs(dy)
+        ? (dx < 0 ? 'left' : 'right')
+        : (dy < 0 ? 'up' : 'down');
+      this.player.anims.play(`walk-${direction}`, true);
+
+      const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, target.x, target.y);
+      this.tweens.add({
+        targets: this.player,
+        x: target.x,
+        y: target.y,
+        duration: Math.max(350, distance / 360 * 1000),
+        ease: 'Linear',
+        onComplete: () => walkNext(index + 1),
+      });
+    };
+
+    walkNext(0);
   }
 
   // --- 깜빡이는 빛(횃불 등) ---
