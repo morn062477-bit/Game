@@ -493,8 +493,16 @@ class MapScene extends Phaser.Scene {
       const playerScale = isInteriorMap ? 0.58 : 0.48;
       this.player = this.physics.add.sprite(startPoint.x, startPoint.y, 'player', 0).setScale(playerScale);
       // 충돌 판정은 발밑 좁은 영역만 쓴다(전신 박스를 쓰면 앞의 벽/오브젝트에 너무 일찍 걸린다).
-      this.player.body.setSize(this.player.width * 0.5, this.player.height * 0.25);
-      this.player.body.setOffset(this.player.width * 0.25, this.player.height * 0.3);
+      // 충돌 바디를 실제 발 부분에만 둔다.
+      const bodyW = this.player.width * 0.42;
+      const bodyH = this.player.height * 0.14;
+
+      this.player.body.setSize(bodyW, bodyH);
+
+      this.player.body.setOffset(
+          (this.player.width - bodyW) / 2,
+          this.player.height * 0.82
+      );
     }
     this.player.body.setCollideWorldBounds(true);
     this.lastDir = 'down';
@@ -758,7 +766,11 @@ class MapScene extends Phaser.Scene {
 
     // 직전 프레임 이동 결과가 걸을 수 있는 영역을 벗어났으면 되돌린다(walkable 레이어가
     // 없는 맵에서는 isWalkable이 항상 true라 아무 효과 없음).
-    const feet = this.player.body.center;
+    const feet = {
+        x: this.player.body.center.x,
+        y: this.player.body.bottom - 1
+    };
+
     if (!this.isWalkable(feet.x, feet.y)) {
       this.player.setPosition(this.lastValidPos.x, this.lastValidPos.y);
       this.player.body.setVelocity(0);
