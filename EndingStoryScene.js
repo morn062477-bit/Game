@@ -204,10 +204,14 @@ class EndingStoryScene extends Phaser.Scene {
       save.story.bodyFound = true;
       save.story.phase = 'confession';
       await this.safeSave();
-      const evidence = save.story.painterCoverup;
-      const trueEvidence = evidence && Object.values(evidence).every((value) => value === true);
-      const helperCorrect = save.finalDeduction?.coverupHelper === 'painter';
-      this.scene.start('EndingStoryScene', { route: trueEvidence && helperCorrect ? 'true' : 'normal' });
+      // 히든(TRUE) 엔딩도 노말 엔딩과 똑같이 농부 자백까지 진행한 뒤 분기한다.
+      // 예전에는 일반 시민 대화에서만 채워지는 painterCoverup 4종을 전부 요구해
+      // 최종 추리를 정확히 맞혀도 히든 엔딩에 진입하지 못하는 경우가 있었다.
+      // 이제 플레이어가 최종 추리에서 수건과 화가의 은폐를 정확히 연결했는지만 본다.
+      const deduction = save.finalDeduction;
+      const painterCoverupCorrect = deduction?.coverupItem === 'painterTowel'
+        && deduction?.coverupHelper === 'painter';
+      this.scene.start('EndingStoryScene', { route: painterCoverupCorrect ? 'true' : 'normal' });
     }
   }
 
