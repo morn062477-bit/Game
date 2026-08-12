@@ -5,23 +5,70 @@
 // 채워 넣으면 된다. 배경/일러스트 이미지는 SuspectVNScene.js의 SUSPECT_VN_ASSETS를
 // 그대로 재사용한다.
 
-// npc id -> { intro, choices: [{ label, response }] }. 지금은 다 비어있어서
-// "아직 물어볼 게 없다" 자리표시만 뜬다. 항목만 채우면 그대로 동작한다.
-// 예시:
-// wife: {
-//   intro: '무엇을 물어볼까?',
-//   choices: [
-//     { label: '사건 당일 행적을 물어본다', response: '...' },
-//     { label: '이장과의 관계를 물어본다', response: '...' },
-//   ],
-// },
+// 모든 용의자에게 공통으로 던지는 세 가지 고정 질문. 라벨은 공통이고 실제
+// 대답(response)만 용의자별로 다르다 - makeChoices()에 순서대로 A/B/C 답을 넣는다.
+const CHOICE_LABELS = [
+  'A. 전날 밤 무엇을 하고 있었죠?',
+  'B. 의심가는 사람은 누구죠?',
+  'C. 피해자를 마지막으로 본 게 언제죠?',
+];
+
+function makeChoices([answerA, answerB, answerC]) {
+  return [
+    { label: CHOICE_LABELS[0], response: answerA },
+    { label: CHOICE_LABELS[1], response: answerB },
+    { label: CHOICE_LABELS[2], response: answerC },
+  ];
+}
+
+// npc id -> { intro, choices }.
 const SUSPECT_CHOICE_SCRIPTS = {
-  wife: null,
-  hunter: null,
-  farmer: null,
-  painter: null,
-  fisher: null,
+  wife: {
+    intro: '무엇을 물어볼까?',
+    choices: makeChoices([
+      '저는 평소에 마을 밖을 밤에 돌아다닌 적이 없어서... 평소 일을 남편에게 맡겨서 숲이랑 논밭도 어떻게 가는지 몰라요...',
+      '사냥꾼이 그런 거 같아요. 저희 집사람이 발견되었을 때, 목이 잘려있었다고 해요. 그 사냥꾼 분은 활과 화살, 그리고 낫까지 들고 있으니 순식간에 죽이고 목을 잘라버린 거 아닐까요?',
+      '낮에 마을 어귀에서 잠깐 마주쳤던 게 마지막이었어요. 별다른 얘기는 안 나눴고, 그냥 인사만 하고 지나쳤죠.',
+    ]),
+  },
+  hunter: {
+    intro: '무엇을 물어볼까?',
+    choices: makeChoices([
+      '숲에 설치한 덫을 점검하고 있었어. 시간이 굉장히 오래 걸리는 작업이라 다른 걸 할 시간도 없었지.',
+      '난 화가 녀석이 수상해. 오늘 화가 녀석이 숲에 그림을 그리러 와서 잠깐 봤는데 피가 묻은 수건을 들고 있더군, 빨간 물감이 묻은 거 아니냐고?\n(몇 초 지나고) .................. 그럴지도 모르지.',
+      '평소 숲 근처만 돌아다니다보니 이장을 보는 일은 흔치 않아. 마지막으로 본 건 일주일 전이군.',
+    ]),
+  },
+  farmer: {
+    intro: '무엇을 물어볼까?',
+    choices: makeChoices([
+      '늦게까지 논에서 일하고 바로 집에 갔어요. 집에 딸아이가 있어서요.',
+      '이장부인이요. 평소에 외도를 하고 있다는 소문이 돌기도 하고요, 최근에는 밤에 크게 싸운 적도 있다고 하더군요.',
+      '어제 저물녘에 얼핏 본 게 마지막이었을 거예요. 이장댁 쪽으로 걸어가고 있었거든요.',
+    ]),
+  },
+  painter: {
+    intro: '무엇을 물어볼까?',
+    choices: makeChoices([
+      '그림을 그리고 있었죠. 전 외지인이라 평소 주위에서 반겨주는 사람이 별로 없어요.',
+      '의심가는 사람이요? 어부인 거 같네요. 발견된 시체는 머리 부분만 있었다고 들었어요. 그럼 몸통부분을 어딘가 숨겨놓았다는 건데, 항구에 있는 바다에 숨겨놓았을 가능성도 있지 않을까요?',
+      '이곳에 처음 왔을 때 말곤 본 기억이 없네요.',
+    ]),
+  },
+  fisher: {
+    intro: '무엇을 물어볼까?',
+    choices: makeChoices([
+      '배에서 그물 손질을 하고 있었지. 아침에 쓸 그물을 미리 정리해두는 편이야.',
+      '난 농부가 의심스럽군. 어젯밤에 나에게 밧줄을 빌려갔는데, 밧줄의 길이가 줄어들어 있더군. 밧줄을 사용해서 할 수 있는 일은 많거든.',
+      '이장을 마지막으로 본 게... 사흘 전 포구에서였을 거야. 그물값을 물어보러 왔었지.',
+    ]),
+  },
 };
+
+// npc id -> 이미 고른 질문의 인덱스. 한 번 질문을 고르면 그 뒤로 같은 용의자에게
+// 다시 말을 걸어도 그때 고른 질문의 대답만 다시 보여주고, 다른 두 질문은 더 이상
+// 고를 수 없게 한다(페이지를 새로고침하기 전까지 세션 동안 유지).
+const suspectChosenIndex = {};
 
 class SuspectChoiceScene extends Phaser.Scene {
   constructor() {
@@ -117,17 +164,21 @@ class SuspectChoiceScene extends Phaser.Scene {
     this.choiceButtons = [];
 
     const choices = this.script?.choices || [];
-    this.bodyText.setText(
-      choices.length
-        ? (this.script.intro || '무엇을 물어볼까?')
-        : `${this.npcName}에게 아직 물어볼 질문이 준비되지 않았다.\n(SUSPECT_CHOICE_SCRIPTS에 내용을 채워주세요)`,
-    );
-
     if (choices.length === 0) {
+      this.bodyText.setText(`${this.npcName}에게 아직 물어볼 질문이 준비되지 않았다.\n(SUSPECT_CHOICE_SCRIPTS에 내용을 채워주세요)`);
       this.hintText.setText('[SPACE] 나가기');
       return;
     }
 
+    // 이 용의자에게 이미 질문을 하나 골랐던 적이 있으면, 목록을 다시 보여주지 않고
+    // 그때 골랐던 질문의 대답만 바로 다시 보여준다.
+    const lockedIndex = suspectChosenIndex[this.npcId];
+    if (lockedIndex != null) {
+      this.showResponse(lockedIndex);
+      return;
+    }
+
+    this.bodyText.setText(this.script.intro || '무엇을 물어볼까?');
     this.hintText.setText('[↑/↓] 선택  [SPACE] 확정');
     const startY = boxY + 78;
     choices.forEach((choice, i) => {
@@ -138,13 +189,19 @@ class SuspectChoiceScene extends Phaser.Scene {
     this.refreshListHighlight();
   }
 
-  // 고른 질문의 응답을 보여준다. SPACE로 목록으로 돌아간다.
+  // 고른 질문의 응답을 보여준다. 다른 질문은 더 고를 수 없으므로 SPACE는 나가기.
   showResponse(index) {
     this.mode = 'response';
     this.choiceButtons.forEach(b => b.container.setVisible(false));
     const choice = this.script.choices[index];
     this.bodyText.setText(choice.response || '(응답 내용이 아직 없다)');
-    this.hintText.setText('[SPACE] 목록으로');
+    this.hintText.setText('[SPACE] 나가기');
+
+    // 처음 고른 질문이면 잠가서, 이 용의자에게 나중에 다시 말을 걸어도 이 대답만
+    // 보이게 한다.
+    if (suspectChosenIndex[this.npcId] == null) {
+      suspectChosenIndex[this.npcId] = index;
+    }
   }
 
   exitToMap() {
@@ -200,12 +257,10 @@ class SuspectChoiceScene extends Phaser.Scene {
     }
 
     if (this.mode === 'response') {
+      // 이미 질문 하나를 골랐으면 더 고를 수 있는 다른 질문이 없으므로, 응답
+      // 화면에서 SPACE/ENTER는 목록으로 돌아가지 않고 바로 나간다.
       if (Phaser.Input.Keyboard.JustDown(this.spaceKey) || Phaser.Input.Keyboard.JustDown(this.enterKey)) {
-        this.choiceButtons.forEach(b => b.container.setVisible(true));
-        this.mode = 'list';
-        this.bodyText.setText(this.script.intro || '무엇을 물어볼까?');
-        this.hintText.setText('[↑/↓] 선택  [SPACE] 확정');
-        this.refreshListHighlight();
+        this.exitToMap();
       }
       return;
     }
