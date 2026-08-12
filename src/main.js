@@ -14,7 +14,10 @@ const config = {
     default: 'arcade',
     arcade: { debug: false },
   },
-  scene: [MapScene, DaVinciCodeScene],
+  // 배열의 첫 씬이 자동으로 시작된다. 봇을 골라 스페이스로 진입하던 단계를 건너뛰고
+  // 곧장 대전에 들어가도록 DaVinciCodeScene을 앞에 둔다. MapScene은 매치가 끝난 뒤
+  // 돌아갈 곳으로 계속 등록해 둔다.
+  scene: [DaVinciCodeScene, MapScene],
 };
 
 new Phaser.Game(config);
