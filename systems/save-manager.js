@@ -3,7 +3,7 @@
 // =============================================
 
 const INITIAL_SAVE_DATA = {
-    saveVersion: 1,
+    saveVersion: 2,
 
     currentMapId: null,
 
@@ -15,7 +15,19 @@ const INITIAL_SAVE_DATA = {
 
     introCompleted: false,
 
+    // =============================================
+    // 용의자 5명 조사 진행도
+    // MapScene에서 실제 사용하는 npc id와 동일하게 맞춘다.
+    // wife / hunter / farmer / painter / fisher
+    // =============================================
     suspects: {
+        wife: {
+            talked: false,
+            selectedQuestion: null,
+            matchWon: false,
+            clueObtained: false
+        },
+
         hunter: {
             talked: false,
             selectedQuestion: null,
@@ -30,21 +42,14 @@ const INITIAL_SAVE_DATA = {
             clueObtained: false
         },
 
-        cartoonist: {
+        painter: {
             talked: false,
             selectedQuestion: null,
             matchWon: false,
             clueObtained: false
         },
 
-        fisherman: {
-            talked: false,
-            selectedQuestion: null,
-            matchWon: false,
-            clueObtained: false
-        },
-
-        chiefWife: {
+        fisher: {
             talked: false,
             selectedQuestion: null,
             matchWon: false,
@@ -52,6 +57,9 @@ const INITIAL_SAVE_DATA = {
         }
     },
 
+    // =============================================
+    // 일반 시민 조사 진행도
+    // =============================================
     citizens: {
         farmerDaughter: {
             talked: false
@@ -70,13 +78,66 @@ const INITIAL_SAVE_DATA = {
         }
     },
 
+    // 현장에서 얻은 단서
     fieldClues: [],
 
+    // 용의자 조사 / 미니게임 등으로 얻은 단서
     rewardClues: [],
 
+    // =============================================
+    // 최종 추리
+    // =============================================
     finalDeductionUnlocked: false,
 
-    ending: null
+    // 플레이어가 최종 추리에서 선택한 답
+    finalDeduction: null,
+
+    // =============================================
+    // 엔딩 스토리 진행 상태
+    // =============================================
+
+    story: {
+
+        // 현재 스토리 진행 단계
+        // investigation
+        // final_gather
+        // final_deduction
+        // farmer_escape
+        // hidden_forest
+        // confession
+        // ending
+        phase: "investigation",
+
+        // 5명 조사 완료 후 마을 집합 이벤트가
+        // 한 번만 실행되도록 확인하는 값
+        finalGatherPlayed: false,
+
+        // 농부 랜턴 상태
+        // unfound = 아직 확보 전
+        // dead = 불이 안 들어오는 상태
+        // lit = 배터리를 넣어 켜진 상태
+        farmerLantern: "unfound",
+
+        // 마지막 조사에서 배터리를 얻었는지
+        batteryObtained: false,
+
+        // 숲 안쪽 숨겨진 길이 열렸는지
+        hiddenForestUnlocked: false,
+
+        // 이장의 몸통 시체를 발견했는지
+        bodyFound: false,
+
+        // TRUE END용 화가 은폐 단서
+        painterCoverup: {
+            bloodyTowel: false,
+            redPigment: false,
+            alibiGap: false,
+            farmerRelationship: false
+        }
+    },
+
+        // null / bad / normal / true
+        ending: null
 };
 
 
