@@ -231,6 +231,14 @@ class DaVinciCodeScene extends Phaser.Scene {
 
     this.dynamicLayer = this.add.container(0, 0);
 
+    // 메뉴/규칙 버튼 전용 레이어 - dynamicLayer와 분리해둔다. 봇 턴 카드 애니메이션이
+    // dynamicLayer 안에서 진행 중이어도 메뉴 버튼은 즉시 반응해야 하는데, dynamicLayer를
+    // 통째로 지우는 무거운 render()를 그대로 불러버리면 진행 중이던 애니메이션 오브젝트가
+    // 파괴돼 다음 이벤트로 못 넘어가거나(게임 멈춤) 손패 카드 표시가 꼬였다. renderMenuUI()는
+    // 이 레이어만 다시 그려서 그 문제 없이 아무 때나(애니메이션 도중에도) 부를 수 있다.
+    this.uiLayer = this.add.container(0, 0);
+    this.uiLayer.setDepth(1200);
+
     // 뒤집기/오답 연출은 그 자리의 카드 위에 임시 오버레이를 얹는데, 그 동안
     // 아래에 있는 '진짜' 타일이 비쳐 보이면 카드가 두 장인 것처럼 된다. 숨겨야
     // 할 자리의 키('side:index')를 여기 모아두고 render()가 매번 참고한다.
@@ -827,14 +835,29 @@ class DaVinciCodeScene extends Phaser.Scene {
     const key = `${side}:${index}`;
     this.hiddenTiles.add(key);
     const tile = this.tileRefs ? this.tileRefs.get(key) : null;
-    if (tile && tile.scene) tile.setVisible(false);
+    if (tile && tile.scene) {
+      // setVisible(false)는 안 보이게만 할 뿐, 그 카드의 호버 확대 존은 계속
+      // 입력을 받을 수 있다 - 숨겨진 채로 마우스가 스쳐 지나가면 확대 트윈이
+      // 몰래 걸려서, 나중에 restoreTile로 다시 보일 때 다른 카드보다 커지거나
+      // 작은 채로 튀어나오는 원인이 됐다(그림자만 원래 크기로 그려져 있어서
+      // 카드 테두리 밖으로 그림자가 삐져나온 것처럼도 보였다). 숨기는 시점에
+      // 진행 중이던 트윈을 확실히 끊어서 그 상태로 얼어붙지 않게 한다.
+      this.tweens.killTweensOf(tile);
+      tile.setVisible(false);
+    }
     return key;
   }
 
   restoreTile(key) {
     this.hiddenTiles.delete(key);
     const tile = this.tileRefs ? this.tileRefs.get(key) : null;
-    if (tile && tile.scene) tile.setVisible(true);
+    if (tile && tile.scene) {
+      // 숨겨져 있던 동안 어떤 트윈이 걸렸었든, 다시 보일 땐 항상 정확히
+      // 원래 크기(1배)로 되돌린다 - 카드 크기가 제각각으로 보이던 버그의 핵심 수정.
+      this.tweens.killTweensOf(tile);
+      tile.setScale(1);
+      tile.setVisible(true);
+    }
   }
 
   // 오답 연출: 그 자리 카드 위에 빨간 테두리 + 좌우 진동을 재생하는 임시 오버레이.
@@ -1293,11 +1316,6 @@ class DaVinciCodeScene extends Phaser.Scene {
 
   render() {
     this.dynamicLayer.removeAll(true);
-    // 규칙 창은 씬 루트에 직접 그려서(위 removeAll로는 안 지워짐) 매번 직접 치운다.
-    if (this._rulesPopupObjects) {
-      this._rulesPopupObjects.forEach((o) => o.destroy());
-      this._rulesPopupObjects = null;
-    }
     // 뒤집기 같은 연출 오버레이가 "그 자리의 진짜 타일"을 잠시 숨길 수 있도록
     // side+index -> 타일 컨테이너 참조를 들고 있는다. 위 removeAll(true)가 매
     // 렌더마다 이전 타일을 파괴하므로 맵도 여기서 같이 새로 만든다.
@@ -1357,49 +1375,7 @@ class DaVinciCodeScene extends Phaser.Scene {
 
     this.drawDeckPile();
 
-    // 대화창 모서리의 SKILL 버튼. 위(상대) 버튼은 상대 소지품 설명 팝업을,
-    // 아래(내) 버튼은 지금 당장 쓸 수 있는 능력(엿보기)이 있으면 클릭으로 바로
-    // 발동, 아니면 내가 보유한 능력 설명 팝업을 보여준다.
-    const btnW = 90;
-    const btnH = 36;
-    const btnLeftShift = 150; // 대화창 오른쪽 끝에 딱 붙어있던 걸 왼쪽으로 옮긴다.
-    const oppBtnX = PORTRAIT_W + 10 + (1200 - PORTRAIT_W - 24) - btnW - btnLeftShift;
-    this.dynamicLayer.add(this.makeSmallSkillButton(oppBtnX, 18, btnW, btnH, false, null, this.oppInfoPopup));
-
-    const lanternUsableNow = this.mode === 'pick_slot' && this.humanStrategy.hasSkill('lantern') && !this.insightPickActive;
-    const myBtnX = PORTRAIT_W + 10 + (1200 - PORTRAIT_W - 24) - btnW - btnLeftShift;
-    const myBtnY = 700 - BOTTOM_H + 18;
-    this.dynamicLayer.add(this.makeSmallSkillButton(myBtnX, myBtnY, btnW, btnH, lanternUsableNow, lanternUsableNow ? () => {
-      this.insightPickActive = true;
-      this.setPlayerLine('엿볼 상대 블록을 클릭하세요.');
-      this.mySkillsPopup.setVisible(false);
-      this.render();
-    } : null, this.mySkillsPopup));
-
-    // SKILL 버튼 바로 아래의 메뉴 버튼 - 누르면 '나가기' 버튼이 펼쳐진다.
-    const menuBtnY = myBtnY + btnH + 8;
-    this.dynamicLayer.add(this.makeSmallSkillButton(myBtnX, menuBtnY, btnW, btnH, false, () => {
-      this.menuOpen = !this.menuOpen;
-      this.render();
-    }, null, '메뉴'));
-
-    if (this.menuOpen) {
-      this.dynamicLayer.add(this.makeSmallSkillButton(myBtnX - btnW - 8, menuBtnY, btnW, btnH, true, () => {
-        this.bgmDavinci.stop();
-        this.scale.resize(960, 540);
-        this.scene.start('MapScene', {
-          mapKey: this.returnMapKey, returnX: this.returnX, returnY: this.returnY,
-        });
-      }, null, '나가기'));
-      this.dynamicLayer.add(this.makeSmallSkillButton(myBtnX - (btnW + 8) * 2, menuBtnY, btnW, btnH, false, () => {
-        this.rulesOpen = true;
-        this.render();
-      }, null, '규칙'));
-    }
-
-    if (this.rulesOpen) {
-      this.drawRulesPopup();
-    }
+    this.renderMenuUI();
 
     if (this.mode === 'pick_number' && this.selectedSlotPos != null) {
       // 지목한 카드 바로 아래에 숫자 선택창이 뜨도록, 위치를 카드 좌표 기준으로 맞춘다.
@@ -1498,6 +1474,69 @@ class DaVinciCodeScene extends Phaser.Scene {
     }
   }
 
+  // SKILL/메뉴/나가기/규칙 버튼과 규칙 팝업만 다시 그린다. dynamicLayer(카드/애니메이션)는
+  // 전혀 건드리지 않으므로, 봇 턴 카드 애니메이션이 한창 진행 중(this.draining === true)
+  // 이어도 안전하게 아무 때나 부를 수 있다 - 예전엔 메뉴 버튼도 무거운 render()를 그대로
+  // 불렀는데, 그게 dynamicLayer.removeAll(true)로 진행 중이던 애니메이션 오브젝트를
+  // 파괴해서 메뉴가 안 눌리는 것처럼 보이거나(연출이 다음 이벤트로 못 넘어감) 카드가
+  // 한 장 더 들어오거나 안 들어온 것처럼 보이는 원인이었다.
+  renderMenuUI() {
+    this.uiLayer.removeAll(true);
+    // 규칙 창은 씬 루트에 직접 그려서(uiLayer.removeAll로는 안 지워짐) 매번 직접 치운다.
+    if (this._rulesPopupObjects) {
+      this._rulesPopupObjects.forEach((o) => o.destroy());
+      this._rulesPopupObjects = null;
+    }
+
+    // 대화창 모서리의 SKILL 버튼. 위(상대) 버튼은 상대 소지품 설명 팝업을,
+    // 아래(내) 버튼은 지금 당장 쓸 수 있는 능력(엿보기)이 있으면 클릭으로 바로
+    // 발동, 아니면 내가 보유한 능력 설명 팝업을 보여준다.
+    const btnW = 90;
+    const btnH = 36;
+    const btnLeftShift = 150; // 대화창 오른쪽 끝에 딱 붙어있던 걸 왼쪽으로 옮긴다.
+    const oppBtnX = PORTRAIT_W + 10 + (1200 - PORTRAIT_W - 24) - btnW - btnLeftShift;
+    this.uiLayer.add(this.makeSmallSkillButton(oppBtnX, 18, btnW, btnH, false, null, this.oppInfoPopup));
+
+    // 엿보기는 상대 카드를 직접 클릭해야 하는 능력이라 dynamicLayer의 클릭 대상을
+    // 다시 그려야 한다 - mode === 'pick_slot'일 때만 눌리는데, 그 상태는 항상
+    // draining이 끝난 뒤(내 턴 입력을 기다릴 때)라서 무거운 render()를 그대로
+    // 불러도 애니메이션을 파괴할 위험이 없다.
+    const lanternUsableNow = this.mode === 'pick_slot' && this.humanStrategy.hasSkill('lantern') && !this.insightPickActive;
+    const myBtnX = PORTRAIT_W + 10 + (1200 - PORTRAIT_W - 24) - btnW - btnLeftShift;
+    const myBtnY = 700 - BOTTOM_H + 18;
+    this.uiLayer.add(this.makeSmallSkillButton(myBtnX, myBtnY, btnW, btnH, lanternUsableNow, lanternUsableNow ? () => {
+      this.insightPickActive = true;
+      this.setPlayerLine('엿볼 상대 블록을 클릭하세요.');
+      this.mySkillsPopup.setVisible(false);
+      this.render();
+    } : null, this.mySkillsPopup));
+
+    // SKILL 버튼 바로 아래의 메뉴 버튼 - 누르면 '나가기' 버튼이 펼쳐진다.
+    const menuBtnY = myBtnY + btnH + 8;
+    this.uiLayer.add(this.makeSmallSkillButton(myBtnX, menuBtnY, btnW, btnH, false, () => {
+      this.menuOpen = !this.menuOpen;
+      this.renderMenuUI();
+    }, null, '메뉴'));
+
+    if (this.menuOpen) {
+      this.uiLayer.add(this.makeSmallSkillButton(myBtnX - btnW - 8, menuBtnY, btnW, btnH, true, () => {
+        this.bgmDavinci.stop();
+        this.scale.resize(960, 540);
+        this.scene.start('MapScene', {
+          mapKey: this.returnMapKey, returnX: this.returnX, returnY: this.returnY,
+        });
+      }, null, '나가기'));
+      this.uiLayer.add(this.makeSmallSkillButton(myBtnX - (btnW + 8) * 2, menuBtnY, btnW, btnH, false, () => {
+        this.rulesOpen = true;
+        this.renderMenuUI();
+      }, null, '규칙'));
+    }
+
+    if (this.rulesOpen) {
+      this.drawRulesPopup();
+    }
+  }
+
   onPickSlot(pos) {
     this.selectedSlotPos = pos;
     this.mode = 'pick_number';
@@ -1590,12 +1629,18 @@ class DaVinciCodeScene extends Phaser.Scene {
       // 나온다 - 지금 고를 수 있는 카드라는 걸 알려주는 힌트.
       hitZone.on('pointerover', () => {
         container.setDepth(950);
+        // 방금 등장한 카드는 아직 playCardEnterAnim의 확대 트윈이 돌고 있을 수 있다 -
+        // 그 상태에서 호버 트윈을 그냥 얹으면 두 트윈이 같은 scaleX/scaleY를 서로
+        // 다른 값으로 매 프레임 덮어써서, 카드가 다른 카드보다 작게 멈춰버리는
+        // 버그로 이어졌다. 새 트윈을 걸기 전에 기존 트윈을 확실히 끊는다.
+        this.tweens.killTweensOf(container);
         this.tweens.add({
           targets: container, scaleX: 1.18, scaleY: 1.18, duration: 120, ease: 'Sine.easeOut',
         });
       });
       hitZone.on('pointerout', () => {
         container.setDepth(0);
+        this.tweens.killTweensOf(container);
         this.tweens.add({
           targets: container, scaleX: 1, scaleY: 1, duration: 120, ease: 'Sine.easeOut',
         });
@@ -1625,6 +1670,7 @@ class DaVinciCodeScene extends Phaser.Scene {
 
   // 새로 뽑힌 카드가 손패에 나타날 때 톡 튀어오르듯 커지는 등장 연출.
   playCardEnterAnim(tile) {
+    this.tweens.killTweensOf(tile);
     tile.setAlpha(0);
     tile.setScale(0.5);
     tile.y -= 18;
@@ -1806,7 +1852,7 @@ class DaVinciCodeScene extends Phaser.Scene {
     closeZone.setDepth(1501);
     closeZone.on('pointerdown', () => {
       this.rulesOpen = false;
-      this.render();
+      this.renderMenuUI();
     });
 
     // dynamicLayer 밖(씬 루트)에 직접 두므로, render()의 dynamicLayer.removeAll()로는
