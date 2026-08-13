@@ -932,7 +932,17 @@ class MapScene extends Phaser.Scene {
       if (!targetProp) return;
       const targetMap = targetProp.value.replace(/\.tmx$/, '');
 
-      const zone = this.add.zone(obj.x + obj.width / 2, obj.y + obj.height / 2, obj.width, obj.height);
+      const isFarmerChaseForestExit = this.currentMapKey === 'map_01_village'
+        && obj.name === 'To_Forest'
+        && window.GameSave?.state?.data?.story?.phase === 'farmer_escape';
+      // 원본 To_Forest 포탈은 화면 최상단의 52px짜리 얕은 영역이라 플레이어 발밑
+      // 물리 바디가 월드 경계에 먼저 막혀 overlap이 발생하지 않았다. 농부 추적 중에만
+      // 길 폭에 맞춰 아래쪽으로 판정을 넓혀, 북쪽 길 끝에 닿으면 확실히 전환한다.
+      const zoneX = isFarmerChaseForestExit ? obj.x + obj.width / 2 : obj.x + obj.width / 2;
+      const zoneY = isFarmerChaseForestExit ? 135 : obj.y + obj.height / 2;
+      const zoneW = isFarmerChaseForestExit ? 230 : obj.width;
+      const zoneH = isFarmerChaseForestExit ? 270 : obj.height;
+      const zone = this.add.zone(zoneX, zoneY, zoneW, zoneH);
       this.physics.add.existing(zone, true);
 
       this.physics.add.overlap(this.player, zone, () => {
@@ -946,7 +956,9 @@ class MapScene extends Phaser.Scene {
         }
         if (this.portalTransitioning) return;
         this.portalTransitioning = true;
-        this.scene.restart({ mapKey: targetMap, fromMapKey: this.currentMapKey });
+        const nextData = { mapKey: targetMap, fromMapKey: this.currentMapKey };
+        if (isFarmerChaseForestExit) nextData.storyEvent = 'forestDiscovery';
+        this.scene.restart(nextData);
       });
     });
   }
