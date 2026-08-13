@@ -10,7 +10,6 @@ console.log("Board UI 로드 완료");
 const boardScreen = document.getElementById("board-screen");
 const boardList = document.getElementById("board-list");
 const boardForm = document.getElementById("board-form");
-const boardNameInput = document.getElementById("board-name");
 const boardCommentInput = document.getElementById("board-comment");
 const boardPlayTimeDisplay = document.getElementById("board-playtime-display");
 const boardCloseButton = document.getElementById("board-close");
@@ -64,7 +63,7 @@ function renderBoardPosts(posts) {
         return;
     }
 
-    posts.forEach((post) => {
+    posts.forEach((post, index) => {
         const item = document.createElement("li");
         item.className = "board-post";
 
@@ -73,7 +72,7 @@ function renderBoardPosts(posts) {
 
         const name = document.createElement("span");
         name.className = "board-post-name";
-        name.textContent = post.name;
+        name.textContent = `#${index + 1}  ${post.name}`;
 
         const time = document.createElement("span");
         time.className = "board-post-time";
@@ -89,8 +88,9 @@ function renderBoardPosts(posts) {
         comment.className = "board-post-comment";
         comment.textContent = post.comment;
 
-        const date = document.createElement("span");
+        const date = document.createElement("time");
         date.className = "board-post-date";
+        date.dateTime = post.created_at;
         date.textContent = formatDate(post.created_at);
 
         item.appendChild(head);
@@ -109,20 +109,30 @@ function renderBoardPosts(posts) {
 async function loadBoardPosts() {
     boardMessage.textContent = "불러오는 중...";
 
-    const { data, error } = await window.GameSupabase
-        .from("board_posts")
-        .select("name, play_time, comment, created_at")
-        .order("created_at", { ascending: false })
-        .limit(50);
+    const pageSize = 1000;
+    const posts = [];
 
-    if (error) {
-        console.error("게시판 불러오기 실패:", error);
-        boardMessage.textContent = "게시글을 불러오지 못했습니다.";
-        return;
+    for (let from = 0; ; from += pageSize) {
+        const { data, error } = await window.GameSupabase
+            .from("board_posts")
+            .select("name, play_time, comment, ending, created_at")
+            .not("ending", "is", null)
+            .order("created_at", { ascending: false })
+            .range(from, from + pageSize - 1);
+
+        if (error) {
+            console.error("게시판 불러오기 실패:", error);
+            boardMessage.textContent = "게시글을 불러오지 못했습니다.";
+            return;
+        }
+
+        posts.push(...data);
+
+        if (data.length < pageSize) break;
     }
 
     boardMessage.textContent = "";
-    renderBoardPosts(data);
+    renderBoardPosts(posts);
 }
 
 
@@ -130,20 +140,19 @@ async function loadBoardPosts() {
 // 게시판 열기 / 닫기
 // =============================================
 
-function openBoard(onClose) {
+async function openBoard(onClose) {
     onBoardCloseCallback = onClose || null;
 
     currentPlayTimeSeconds = window.GameSave?.state?.playTime || 0;
     boardPlayTimeDisplay.textContent =
         `내 플레이 시간: ${formatPlayTime(currentPlayTimeSeconds)}`;
 
-    boardNameInput.value = window.playerNickname || "";
     boardCommentInput.value = "";
     boardMessage.textContent = "";
 
     boardScreen.style.display = "flex";
 
-    loadBoardPosts();
+    await loadBoardPosts();
 }
 
 function closeBoard() {
@@ -171,24 +180,20 @@ document.addEventListener("keydown", (event) => {
 boardForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
-    const name = boardNameInput.value.trim();
     const comment = boardCommentInput.value.trim();
 
-    if (!name || !comment) return;
+    if (!comment) return;
 
     boardMessage.textContent = "등록하는 중...";
 
-    const { error } = await window.GameSupabase
-        .from("board_posts")
-        .insert({
-            name,
-            play_time: currentPlayTimeSeconds,
-            comment
-        });
+    const { error } = await window.GameSupabase.rpc(
+        "submit_board_post",
+        { review_text: comment }
+    );
 
     if (error) {
         console.error("게시글 등록 실패:", error);
-        boardMessage.textContent = "게시글 등록에 실패했습니다.";
+        boardMessage.textContent = error.message || "게시글 등록에 실패했습니다.";
         return;
     }
 

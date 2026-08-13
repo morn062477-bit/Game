@@ -150,6 +150,41 @@ const saveState = {
     playTime: 0
 };
 
+let playTimerId = null;
+let secondsSinceAutoSave = 0;
+
+function stopPlayTimer() {
+    if (playTimerId !== null) {
+        window.clearInterval(playTimerId);
+        playTimerId = null;
+    }
+}
+
+function startPlayTimer() {
+    stopPlayTimer();
+
+    // 이미 엔딩을 완료한 세이브는 랭킹 기록이 더 늘어나지 않게 고정한다.
+    if (saveState.data?.ending) return;
+
+    secondsSinceAutoSave = 0;
+    playTimerId = window.setInterval(() => {
+        if (saveState.data?.ending) {
+            stopPlayTimer();
+            return;
+        }
+
+        saveState.playTime += 1;
+        secondsSinceAutoSave += 1;
+
+        if (secondsSinceAutoSave >= 30) {
+            secondsSinceAutoSave = 0;
+            saveGame().catch((error) => {
+                console.error("플레이타임 자동 저장 실패:", error);
+            });
+        }
+    }, 1000);
+}
+
 
 // =============================================
 // 현재 로그인 사용자 확인
@@ -171,6 +206,7 @@ async function getLoggedInUser() {
 // =============================================
 
 function resetSaveState() {
+    stopPlayTimer();
     saveState.data = structuredClone(INITIAL_SAVE_DATA);
     saveState.playTime = 0;
 }
@@ -296,6 +332,8 @@ async function createNewSave() {
 
     console.log("새 세이브 생성 완료");
 
+    startPlayTimer();
+
     return saveState.data;
 }
 
@@ -353,6 +391,8 @@ async function loadSave() {
 
     console.log("세이브 불러오기 완료:", saveState.data);
 
+    startPlayTimer();
+
     return {
         playTime: saveState.playTime,
         saveData: saveState.data
@@ -366,6 +406,10 @@ async function loadSave() {
 
 async function saveGame() {
     const user = await getLoggedInUser();
+
+    if (saveState.data?.ending) {
+        stopPlayTimer();
+    }
 
     const { error } = await window.GameSupabase
         .from("saves")
@@ -400,6 +444,9 @@ window.GameSave = {
     initialSaveData: INITIAL_SAVE_DATA,
 
     resetSaveState,
+
+    startPlayTimer,
+    stopPlayTimer,
 
     normalizeSaveData,
 

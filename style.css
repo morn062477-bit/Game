@@ -643,8 +643,10 @@ canvas {
     display: flex;
     flex-direction: column;
 
-    width: 460px;
-    max-height: 460px;
+    width: 720px;
+    height: 500px;
+    max-width: calc(100% - 48px);
+    max-height: calc(100% - 32px);
 
     padding: 20px 22px;
 
@@ -693,17 +695,36 @@ canvas {
 }
 
 /* 게시글 목록 */
+#board-list-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-top: 12px;
+    padding: 0 4px 7px;
+    border-bottom: 1px solid rgba(151, 102, 50, 0.35);
+}
+
+#board-list-header h2 {
+    color: rgba(218, 164, 91, 0.95);
+    font-size: 14px;
+    font-weight: normal;
+}
+
+#board-list-header span {
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 9px;
+}
+
 #board-list {
     list-style: none;
 
     overflow-y: auto;
+    flex: 1;
+    min-height: 0;
 
-    margin-bottom: 12px;
+    margin-bottom: 0;
     padding-right: 4px;
 
-    max-height: 210px;
-
-    border-top: 1px solid rgba(151, 102, 50, 0.35);
     border-bottom: 1px solid rgba(151, 102, 50, 0.35);
 }
 
@@ -772,13 +793,10 @@ canvas {
 }
 
 /* 작성 폼 */
-#board-form input,
 #board-form textarea {
-    display: block;
-
-    width: 100%;
-
-    margin-bottom: 8px;
+    flex: 1;
+    min-width: 0;
+    margin: 0;
 
     padding: 8px 10px;
 
@@ -796,7 +814,6 @@ canvas {
     resize: none;
 }
 
-#board-form input:focus,
 #board-form textarea:focus {
     background: rgba(230, 219, 199, 0.97);
 
@@ -804,11 +821,17 @@ canvas {
 }
 
 #board-form textarea {
-    height: 56px;
+    height: 42px;
+}
+
+#board-form {
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
 }
 
 #board-playtime-display {
-    margin: -2px 0 8px 2px;
+    margin: 5px 0 0 2px;
 
     color: rgba(255, 255, 255, 0.5);
 
@@ -816,8 +839,9 @@ canvas {
 }
 
 #board-form button {
-    width: 100%;
-    height: 36px;
+    width: 124px;
+    height: 42px;
+    flex: 0 0 124px;
 
     background: transparent;
 
@@ -840,7 +864,7 @@ canvas {
 
 #board-message {
     min-height: 14px;
-    margin-top: 6px;
+    margin-top: 5px;
 
     color: rgba(255, 255, 255, 0.6);
 
