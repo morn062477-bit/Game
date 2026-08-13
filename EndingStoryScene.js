@@ -139,6 +139,13 @@ class EndingStoryScene extends Phaser.Scene {
     this.script = ENDING_STORY_ROUTES[this.route] || ENDING_STORY_ROUTES.bad;
     this.index = 0;
     this.finished = false;
+    // 씬 인스턴스는 scene.start()를 다시 불러도 재사용된다(새 객체가 아님) -
+    // 방명록까지 다 쓰고 세이브 화면으로 돌아간 뒤 "이어하기"로 다시 여기로
+    // 오면(resumeStoryFromSave, story.phase === 'ending') 이 두 플래그가 지난
+    // 회차의 true 값을 그대로 들고 있어서, advance()가 아무것도 안 하는(엔딩
+    // 화면이 멈춘 것처럼 보이는) 버그가 있었다. 매번 새로 리셋해야 한다.
+    this.endingTitleShown = false;
+    this.returning = false;
     this.add.rectangle(480, 270, 960, 540, 0x080706);
     if (this.route === 'bodyConfession' && this.textures.exists('farmer-confession')) {
       const sceneImage = this.add.image(480, 270, 'farmer-confession').setOrigin(0.5);
