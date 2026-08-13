@@ -697,36 +697,44 @@ class MapScene extends Phaser.Scene {
       fontSize: uiFont(14), fill: '#ffff00', backgroundColor: '#000000aa', padding: { x: 10, y: 5 }
     }).setOrigin(0.5).setScrollFactor(0).setVisible(false);
 
-    // NPC 대화창. RPG Maker풍 - 화면 하단에 딱 붙는 단색 검은 박스, 왼쪽에 정사각형
-    // 흉상 초상화, "[이름]" 형태 이름표, 흰 텍스트, 하단 중앙에 다음 표시용 ▼.
+    // NPC 대화창. 화면 하단에 딱 붙는 박스, 왼쪽에 정사각형 흉상 초상화, "[이름]" 형태
+    // 이름표, 하단 중앙에 다음 표시용 ▼. 색은 SuspectVNScene/SuspectChoiceScene과 같은
+    // 가죽/청동 톤(어두운 가죽색 + 금색 테두리)으로 맞춰서 게임 전체 대화창 스타일을
+    // 통일했다(예전엔 여기만 단색 검은 박스라 따로 놀았다).
     // 여기부터는 전부 "화면 기준" 좌표/길이를 정한 뒤 uiX/uiY/uiLen으로 변환해서 쓴다.
     const dialogCam = this.cameras.main;
     const dialogBoxW = dialogCam.width;
     const dialogBoxH = 170;
     const dialogBoxX = 0;
     const dialogBoxY = dialogCam.height - dialogBoxH;
+    const DIALOG_FILL = 0x2a1f14;   // 가죽/양피지 색 (SuspectVNScene과 동일)
+    const DIALOG_BORDER = 0xb8860b; // 청동/황동 테두리
     // 초상화는 박스 왼쪽 끝에 딱 붙여서 박스 높이만큼 꽉 채운다(테두리/여백 없음).
     const portraitSize = dialogBoxH;
     const portraitX = dialogBoxX;
     const portraitY = dialogBoxY;
     const textStartX = portraitX + portraitSize + 24;
     this.dialogueBox = this.add.graphics().setScrollFactor(0).setDepth(3000).setVisible(false);
-    this.dialogueBox.fillStyle(0x000000, 0.92);
+    this.dialogueBox.fillStyle(DIALOG_FILL, 0.95);
     this.dialogueBox.fillRect(uiX(dialogBoxX), uiY(dialogBoxY), uiLen(dialogBoxW), uiLen(dialogBoxH));
+    this.dialogueBox.lineStyle(uiLen(3), DIALOG_BORDER, 1);
+    this.dialogueBox.lineBetween(uiX(dialogBoxX), uiY(dialogBoxY), uiX(dialogBoxX + dialogBoxW), uiY(dialogBoxY));
     this.dialoguePortraitBox = { x: uiX(portraitX), y: uiY(portraitY), size: uiLen(portraitSize) };
     this.dialoguePortraitBg = this.add.graphics().setScrollFactor(0).setDepth(3001).setVisible(false);
-    this.dialoguePortraitBg.fillStyle(0x000000, 0.92);
+    this.dialoguePortraitBg.fillStyle(DIALOG_FILL, 0.95);
     this.dialoguePortraitBg.fillRect(uiX(portraitX), uiY(portraitY), uiLen(portraitSize), uiLen(portraitSize));
+    this.dialoguePortraitBg.lineStyle(uiLen(3), DIALOG_BORDER, 1);
+    this.dialoguePortraitBg.strokeRect(uiX(portraitX), uiY(portraitY), uiLen(portraitSize), uiLen(portraitSize));
     this.dialoguePortrait = this.add.image(uiX(portraitX + portraitSize / 2), uiY(portraitY + portraitSize / 2), 'player', 0)
       .setScrollFactor(0).setDepth(3002).setVisible(false);
     this.dialogueNameText = this.add.text(uiX(textStartX), uiY(dialogBoxY + 16), '', {
-      fontSize: uiFont(17), fill: '#ffffff', fontStyle: 'bold',
+      fontSize: uiFont(17), fill: '#e8b34d', fontStyle: 'bold',
     }).setScrollFactor(0).setDepth(3001).setVisible(false);
     this.dialogueText = this.add.text(uiX(textStartX), uiY(dialogBoxY + 48), '', {
-      fontSize: uiFont(16), fill: '#ffffff', wordWrap: { width: uiLen(dialogBoxX + dialogBoxW - 20 - textStartX) }, lineSpacing: uiLen(8),
+      fontSize: uiFont(16), fill: '#f2e6cf', wordWrap: { width: uiLen(dialogBoxX + dialogBoxW - 20 - textStartX) }, lineSpacing: uiLen(8),
     }).setScrollFactor(0).setDepth(3001).setVisible(false);
     this.dialogueHint = this.add.text(uiX(dialogBoxX + dialogBoxW / 2), uiY(dialogBoxY + dialogBoxH - 14), '▼', {
-      fontSize: uiFont(16), fill: '#ffffff',
+      fontSize: uiFont(16), fill: '#e8b34d',
     }).setOrigin(0.5, 1).setScrollFactor(0).setDepth(3001).setVisible(false);
 
     // 화면 오른쪽 위 단서 확보 현황. 용의자를 심문해서 질문을 확정지을 때마다
