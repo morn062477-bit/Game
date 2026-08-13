@@ -126,7 +126,8 @@ function resumeStoryFromSave() {
   } else if (phase === 'final_deduction') {
     mapScene.scene.start('FinalDeductionScene');
   } else if (phase === 'farmer_escape') {
-    mapScene.scene.restart({ mapKey: 'map_02_forest', storyEvent: 'forestDiscovery' });
+    // 이어하기에서도 마을 북쪽 출구부터 농부 추적을 재개한다.
+    mapScene.scene.restart({ mapKey: 'map_01_village' });
   } else if (phase === 'hidden_forest') {
     // 랜턴 수리 직후 저장된 경우에도 숲 입구 걷기 컷신부터 정확히 복구한다.
     mapScene.scene.restart({ mapKey: 'map_02_forest', storyEvent: 'walkToHiddenForest' });

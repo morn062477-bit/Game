@@ -322,12 +322,12 @@ class MapScene extends Phaser.Scene {
     this.load.spritesheet('npc-wife', `asset/characters/용의자들-wife/wife.png?v=${v}`, npcFrame);
     // 시체 발견 장소(map_08_body)에 놓인 시체. 걸어다니는 캐릭터가 아니라 누워있는
     // 정지 그림 한 장(가로로 긴 1536x1024)이라 스프라이트시트가 아니라 일반 이미지로 불러온다.
-    this.load.image('npc-body', `asset/characters/용의자들-NPC/body.png?v=${v}`);
+    this.load.image('npc-body', `asset/characters/용의자들-NPC/body-transparent-final.png?v=${v}`);
 
     // 일반 NPC 대화창 초상화용 일러스트(걷기 스프라이트와 별도). "탐정" 질문 줄에도
     // 전용 일러스트가 있어서 그걸 쓰고, 일러스트가 없는 id는 기존처럼 걷기 스프라이트로
     // 대체된다(showDialogueLine 참고).
-    this.load.image('dialogue-ill-탐정', `asset/characters/대화창 일러스트/dective_ill.png?v=${v}`);
+    this.load.image('dialogue-ill-탐정', `asset/characters/대화창 일러스트/detective_ill_transparent_v2.png?v=${v}`);
     this.load.image('dialogue-ill-saint', `asset/characters/대화창 일러스트/saint_ill.png?v=${v}`);
     this.load.image('dialogue-ill-doctor', `asset/characters/대화창 일러스트/doctor_ill.png?v=${v}`);
     this.load.image('dialogue-ill-boy', `asset/characters/대화창 일러스트/boy_ill.png?v=${v}`);
@@ -1003,7 +1003,17 @@ class MapScene extends Phaser.Scene {
       if (!targetProp) return;
       const targetMap = targetProp.value.replace(/\.tmx$/, '');
 
-      const zone = this.add.zone(obj.x + obj.width / 2, obj.y + obj.height / 2, obj.width, obj.height);
+      const isFarmerChaseForestExit = this.currentMapKey === 'map_01_village'
+        && obj.name === 'To_Forest'
+        && window.GameSave?.state?.data?.story?.phase === 'farmer_escape';
+      // 원본 To_Forest 포탈은 화면 최상단의 52px짜리 얕은 영역이라 플레이어 발밑
+      // 물리 바디가 월드 경계에 먼저 막혀 overlap이 발생하지 않았다. 농부 추적 중에만
+      // 길 폭에 맞춰 아래쪽으로 판정을 넓혀, 북쪽 길 끝에 닿으면 확실히 전환한다.
+      const zoneX = isFarmerChaseForestExit ? obj.x + obj.width / 2 : obj.x + obj.width / 2;
+      const zoneY = isFarmerChaseForestExit ? 135 : obj.y + obj.height / 2;
+      const zoneW = isFarmerChaseForestExit ? 230 : obj.width;
+      const zoneH = isFarmerChaseForestExit ? 270 : obj.height;
+      const zone = this.add.zone(zoneX, zoneY, zoneW, zoneH);
       this.physics.add.existing(zone, true);
 
       this.physics.add.overlap(this.player, zone, () => {
@@ -1017,7 +1027,9 @@ class MapScene extends Phaser.Scene {
         }
         if (this.portalTransitioning) return;
         this.portalTransitioning = true;
-        this.scene.restart({ mapKey: targetMap, fromMapKey: this.currentMapKey });
+        const nextData = { mapKey: targetMap, fromMapKey: this.currentMapKey };
+        if (isFarmerChaseForestExit) nextData.storyEvent = 'forestDiscovery';
+        this.scene.restart(nextData);
       });
     });
   }

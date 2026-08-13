@@ -182,7 +182,9 @@ class EndingStoryScene extends Phaser.Scene {
       await this.safeSave();
       this.cameras.main.fadeOut(300, 0, 0, 0);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
-        this.scene.start('MapScene', { mapKey: 'map_02_forest', storyEvent: 'forestDiscovery' });
+        // 농부가 달아난 뒤 마을에서 조작권을 돌려준다. 플레이어가 북쪽 숲 출구로
+        // 직접 쫓아가면 MapScene의 farmer_escape 전용 포탈이 숲 장면을 시작한다.
+        this.scene.start('MapScene', { mapKey: 'map_01_village' });
       });
       return;
     }
@@ -207,11 +209,17 @@ class EndingStoryScene extends Phaser.Scene {
       // 히든(TRUE) 엔딩도 노말 엔딩과 똑같이 농부 자백까지 진행한 뒤 분기한다.
       // 예전에는 일반 시민 대화에서만 채워지는 painterCoverup 4종을 전부 요구해
       // 최종 추리를 정확히 맞혀도 히든 엔딩에 진입하지 못하는 경우가 있었다.
-      // 이제 플레이어가 최종 추리에서 수건과 화가의 은폐를 정확히 연결했는지만 본다.
+      // 모든 범행 단서와 화가의 은폐까지 전부 맞혀야 히든(TRUE) 엔딩이다.
+      // 범인만 농부로 맞히고 나머지 중 하나라도 틀리면 공통 장면 뒤 Normal로 간다.
       const deduction = save.finalDeduction;
-      const painterCoverupCorrect = deduction?.coverupItem === 'painterTowel'
+      const perfectDeduction = deduction?.culprit === 'farmer'
+        && deduction?.weapon === 'hunterSickle'
+        && deduction?.motive === 'landDevelopment'
+        && deduction?.transport === 'rope'
+        && deduction?.disposal === 'hiddenForest'
+        && deduction?.coverupItem === 'painterTowel'
         && deduction?.coverupHelper === 'painter';
-      this.scene.start('EndingStoryScene', { route: painterCoverupCorrect ? 'true' : 'normal' });
+      this.scene.start('EndingStoryScene', { route: perfectDeduction ? 'true' : 'normal' });
     }
   }
 

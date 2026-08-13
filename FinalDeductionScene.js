@@ -153,8 +153,8 @@ class FinalDeductionScene extends Phaser.Scene {
     this.summaryActions = [() => this.submitDeduction(), () => {
       this.answers = {}; this.stepIndex = 0; this.showStep();
     }];
-    this.makeButton(335, 430, '이 추리로 지목한다', this.summaryActions[0]);
-    this.makeButton(625, 430, '다시 선택한다', this.summaryActions[1]);
+    this.makeButton(335, 485, '이 추리로 지목한다', this.summaryActions[0]);
+    this.makeButton(625, 485, '다시 선택한다', this.summaryActions[1]);
     this.summaryButtons = this.optionObjects.slice(-2);
     this.summaryButtons.forEach((button, index) => button.on('pointerover', () => {
       this.selectedIndex = index;
@@ -181,16 +181,8 @@ class FinalDeductionScene extends Phaser.Scene {
       this.scene.start('EndingStoryScene', { route: 'bad', deduction: this.answers });
       return;
     }
-    const coreCorrect = this.answers.weapon === 'hunterSickle'
-      && this.answers.motive === 'landDevelopment'
-      && this.answers.transport === 'rope'
-      && this.answers.disposal === 'hiddenForest'
-      && this.answers.coverupItem === 'painterTowel';
-    if (!coreCorrect) {
-      this.answers = {}; this.stepIndex = 0;
-      this.showStep('아직 설명되지 않는 단서가 있다. 추리를 다시 확인해야 한다.');
-      return;
-    }
+    // 범인을 농부로 맞혔다면 나머지 단서가 틀려도 선택 화면으로 되돌리지 않는다.
+    // 이후 공통 추적/자백 장면을 모두 보여주고, 정확도에 따라 Normal/True만 나눈다.
     this.scene.start('EndingStoryScene', { route: 'farmerConfrontation' });
   }
 }
