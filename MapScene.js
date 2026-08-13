@@ -400,6 +400,12 @@ class MapScene extends Phaser.Scene {
   }
 
   create() {
+    // 포탈을 밟아 다른 맵으로 넘어오면 true로 세팅되는데(중복 진입 방지용),
+    // 리셋을 안 해주면 그 뒤로는 이 인스턴스가 살아있는 한(scene.start/restart를
+    // 거듭해도 씬 인스턴스 자체는 재사용됨) 어떤 포탈을 밟아도 계속 막혀버린다 -
+    // 새 맵에 들어와 create()가 실행되는 시점에는 항상 다시 풀어줘야 한다.
+    this.portalTransitioning = false;
+
     // 2. 포탈/오브젝트 데이터만 이 맵의 JSON에서 읽는다
     const map = this.make.tilemap({ key: this.currentMapKey });
 
