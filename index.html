@@ -119,6 +119,49 @@
 
   </div>
 
+  <!-- 마을 게시판 -->
+  <div id="board-screen">
+
+    <div id="board-box">
+
+        <div id="board-box-header">
+            <h1>마을 게시판</h1>
+            <button id="board-close" type="button" aria-label="닫기">×</button>
+        </div>
+
+        <ul id="board-list"></ul>
+
+        <form id="board-form">
+
+            <input
+                id="board-name"
+                type="text"
+                placeholder="이름"
+                maxlength="20"
+                required
+            >
+
+            <p id="board-playtime-display"></p>
+
+            <textarea
+                id="board-comment"
+                placeholder="한마디 남기기"
+                maxlength="200"
+                required
+            ></textarea>
+
+            <button type="submit">
+                게시글 남기기
+            </button>
+
+        </form>
+
+        <p id="board-message"></p>
+
+    </div>
+
+  </div>
+
   <!-- Phaser CDN -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
   <!--Supabase CDN-->
@@ -151,6 +194,7 @@
     document.write(`<script src="main.js?v=${__v}"><\/script>`);
 
     document.write(`<script src="systems/auth-ui.js?v=${__v}"><\/script>`);
+    document.write(`<script src="systems/board-ui.js?v=${__v}"><\/script>`);
   </script>
 </body>
 </html>
