@@ -116,7 +116,7 @@ async function getProfileNickname() {
     const { data, error } = await authSupabase
         .from("profiles")
         .select("nickname")
-        .eq("id", user.id)
+        .eq("user_id", user.id)
         .single();
 
     if (error) {
