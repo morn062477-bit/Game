@@ -268,9 +268,10 @@ class MapScene extends Phaser.Scene {
       frameHeight: 342,
     });
 
-    // 단서 확보 현황 UI에 쓸 용의자별 단서 아이콘.
+    // 단서 확보 현황 UI에 쓸 용의자별 단서 아이콘 + 마우스를 올렸을 때 크게 보여줄 이미지.
     CLUE_SUSPECT_ORDER.forEach((npcId) => {
       this.load.image(`clue-${npcId}`, `asset/clues/${npcId}.png?v=${v}`);
+      this.load.image(`clue-hover-${npcId}`, `asset/clues/${npcId}_hovor.png?v=${v}`);
     });
 
     // 정적 장식: 항구 배경 그림에서 배만 오려낸 그림(배경을 투명하게 뺀 것). 배 두 척.
@@ -1282,13 +1283,69 @@ startFinalGatherDialogue() {
       ring.lineStyle(uiLen(2), 0xffe9a8, 1);
       ring.strokeCircle(uiX(cx), uiY(cy), uiLen(circleR));
 
+      // 이미 얻은 단서는 마우스를 올리면 asset/clues의 "_hovor" 확대 이미지를
+      // 화면 중앙에 크게 띄워준다. 히트 영역은 원 모양 그대로 잡는다.
+      bg.setInteractive(new Phaser.Geom.Circle(uiX(cx), uiY(cy), uiLen(circleR)), Phaser.Geom.Circle.Contains);
+      bg.input.cursor = 'pointer';
+      bg.on('pointerover', () => this.showCluePreview(npcId));
+      bg.on('pointerout', () => this.hideCluePreview());
+
       return { npcId, bg, icon, ring };
     });
 
     this.refreshClueTracker();
   }
 
+  // 단서 아이콘에 마우스를 올렸을 때 화면 중앙에 크게 띄우는 미리보기. 아직 못 얻은
+  // 단서(빈 원)는 보여줄 그림이 없으므로 무시한다.
+  showCluePreview(npcId) {
+    const obtained = window.GameSave?.state?.data?.suspects?.[npcId]?.clueObtained === true;
+    const texKey = `clue-hover-${npcId}`;
+    if (!obtained || !this.textures.exists(texKey)) return;
+
+    this.hideCluePreview();
+
+    const uiX = this.uiX, uiY = this.uiY, uiLen = this.uiLen, uiFont = this.uiFont;
+    const cam = this.cameras.main;
+    const src = this.textures.get(texKey).getSourceImage();
+    const targetW = uiLen(cam.width * 0.5);
+    const targetH = uiLen(cam.height * 0.62);
+    const scale = Math.min(targetW / src.width, targetH / src.height);
+    const dispW = src.width * scale;
+    const dispH = src.height * scale;
+    const cx = uiX(cam.width / 2);
+    const cy = uiY(cam.height / 2);
+
+    this.cluePreviewDim = this.add.graphics().setScrollFactor(0).setDepth(4000);
+    this.cluePreviewDim.fillStyle(0x000000, 0.6);
+    this.cluePreviewDim.fillRect(uiX(0), uiY(0), uiLen(cam.width), uiLen(cam.height));
+
+    this.cluePreviewFrame = this.add.graphics().setScrollFactor(0).setDepth(4001);
+    this.cluePreviewFrame.fillStyle(0x2a1f14, 0.95);
+    this.cluePreviewFrame.fillRoundedRect(cx - dispW / 2 - uiLen(12), cy - dispH / 2 - uiLen(12), dispW + uiLen(24), dispH + uiLen(24), uiLen(10));
+    this.cluePreviewFrame.lineStyle(uiLen(3), 0xb8860b, 1);
+    this.cluePreviewFrame.strokeRoundedRect(cx - dispW / 2 - uiLen(12), cy - dispH / 2 - uiLen(12), dispW + uiLen(24), dispH + uiLen(24), uiLen(10));
+
+    this.cluePreviewImage = this.add.image(cx, cy, texKey).setScrollFactor(0).setDepth(4002).setScale(scale);
+
+    this.cluePreviewLabel = this.add.text(cx, cy + dispH / 2 + uiLen(24), NPC_DISPLAY_NAME[npcId] || npcId, {
+      fontSize: uiFont(16), fill: '#e8c86a', fontStyle: 'bold',
+    }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(4002);
+  }
+
+  hideCluePreview() {
+    this.cluePreviewDim?.destroy();
+    this.cluePreviewFrame?.destroy();
+    this.cluePreviewImage?.destroy();
+    this.cluePreviewLabel?.destroy();
+    this.cluePreviewDim = null;
+    this.cluePreviewFrame = null;
+    this.cluePreviewImage = null;
+    this.cluePreviewLabel = null;
+  }
+
   setClueTrackerVisible(visible) {
+    if (!visible) this.hideCluePreview();
     this.clueTrackerTitle?.setVisible(visible);
     this.clueTrackerSlots?.forEach(({ bg, icon, ring, npcId }) => {
       bg.setVisible(visible);
