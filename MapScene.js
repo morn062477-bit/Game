@@ -1000,20 +1000,7 @@ class MapScene extends Phaser.Scene {
       }
       this.physics.add.existing(npc, true);
       if (isSpriteNpc) {
-        // 기본은 스프라이트 전신 크기 그대로 충돌 박스가 잡혀서 너무 커진다 -
-        // 보트(충돌 판정이 훨씬 큼)를 탄 상태로는 NPC 근처에 몸이 닿기도 전에
-        // 막혀버려서 상호작용 거리(140px) 안으로 들어오지 못하는 문제가 있었다.
-        // 발밑 좁은 영역만 막히게 줄인다.
-        // 주의: 플레이어(동적 바디)는 setOffset에 넘긴 값을 Phaser가 매 프레임
-        // 스케일만큼 곱해서 적용하므로 원본(스케일 전) width/height를 써야 하지만,
-        // NPC는 정적 바디(physics.add.existing(npc, true))라 그런 자동 보정이
-        // 없다 - 여기 넘기는 값은 이미 화면에 보이는 크기(displayWidth/Height)
-        // 기준이어야 한다. npc.width/height(스케일 적용 전 원본)를 그대로 쓰면
-        // 충돌 박스가 실제 캐릭터보다 훨씬 아래/엉뚱한 위치에 잡힌다.
-        const bodyW = npc.displayWidth * 0.4;
-        const bodyH = npc.displayHeight * 0.2;
-        npc.body.setSize(bodyW, bodyH);
-        npc.body.setOffset((npc.displayWidth - bodyW) / 2, npc.displayHeight - bodyH);
+        this.applyNpcFeetCollision(npc);
       }
       this.npcGroup.add(npc);
 
@@ -1026,6 +1013,32 @@ class MapScene extends Phaser.Scene {
     });
 
     this.physics.add.collider(this.player, this.npcGroup);
+  }
+
+  // 걷기 스프라이트 NPC의 충돌 판정을 발밑 좁은 영역으로 줄인다. 기본은 스프라이트
+  // 전신 크기 그대로 충돌 박스가 잡혀서 너무 커진다 - 보트(충돌 판정이 훨씬 큼)를
+  // 탄 상태로는 NPC 근처에 몸이 닿기도 전에 막혀버려서 상호작용 거리(140px) 안으로
+  // 들어오지 못하는 문제가 있었다.
+  //
+  // 주의: 플레이어(동적 바디)는 setOffset에 넘긴 값을 Phaser가 매 프레임 스케일만큼
+  // 곱해서 적용하므로 원본(스케일 전) width/height를 써야 하지만, NPC는 정적 바디
+  // (physics.add.existing(npc, true))라 그런 자동 보정이 없다 - 여기 넘기는 값은
+  // 이미 화면에 보이는 크기(displayWidth/Height) 기준이어야 한다. npc.width/height
+  // (스케일 적용 전 원본)를 그대로 쓰면 충돌 박스가 실제 캐릭터보다 훨씬 아래/엉뚱한
+  // 위치에 잡힌다.
+  //
+  // 또한 정적 바디는 setOffset으로 잡아둔 좁은 영역을 스스로 기억하지 못한다 -
+  // sprite.body.reset(x, y)를 부르면(오프닝 컷씬에서 성녀가 걸어간 뒤처럼, 정적
+  // 바디는 위치가 자동으로 안 따라와서 이동이 끝난 뒤 수동으로 불러줘야 한다)
+  // StaticBody.reset()이 오프셋을 무시하고 스프라이트 전체 바운딩 박스 기준
+  // top-left로 되돌려버린다. 그래서 body.reset() 뒤에는 반드시 이 메서드를 다시
+  // 호출해서 발밑 좁은 판정을 되살려야 한다 - 안 그러면 성녀처럼 걸어다니는 NPC의
+  // 충돌 위치가 실제 캐릭터와 어긋나 보인다.
+  applyNpcFeetCollision(npc) {
+    const bodyW = npc.displayWidth * 0.4;
+    const bodyH = npc.displayHeight * 0.2;
+    npc.body.setSize(bodyW, bodyH);
+    npc.body.setOffset((npc.displayWidth - bodyW) / 2, npc.displayHeight - bodyH);
   }
 
   // --- 포탈 영역 및 맵 이동 처리 ---
@@ -1721,7 +1734,10 @@ startFinalGatherDialogue() {
         cam.pan(statueX, statueY, 1400, 'Sine.easeInOut');
         await walkPath(saintEntry.sprite, saintWaypoints, 240, saintEntry.label, saintEntry.texKey);
         // 정지 물리 바디는 알아서 안 따라오므로 이동이 끝난 위치로 다시 맞춰준다.
+        // reset()은 발밑 좁은 오프셋을 무시하고 전신 바운딩 박스로 되돌려버리므로
+        // (applyNpcFeetCollision 주석 참고) 곧바로 다시 좁혀줘야 한다.
         saintEntry.sprite.body.reset(saintEntry.sprite.x, saintEntry.sprite.y);
+        this.applyNpcFeetCollision(saintEntry.sprite);
         // 도착하면 이동 방향과 상관없이 정면(아래쪽)을 보고 선다.
         saintEntry.sprite.anims.stop();
         saintEntry.sprite.setFrame(0);
@@ -1742,6 +1758,7 @@ startFinalGatherDialogue() {
         const fleePromise = walkPath(saintEntry.sprite, fleeWaypoints, 420, saintEntry.label, saintEntry.texKey)
           .then(() => {
             saintEntry.sprite.body.reset(saintEntry.sprite.x, saintEntry.sprite.y);
+            this.applyNpcFeetCollision(saintEntry.sprite);
           });
         await Promise.all([showCaption('성녀는 비명을 지르며 달아났다...', 1800), fleePromise]);
       }
@@ -1832,6 +1849,7 @@ startFinalGatherDialogue() {
       const pos = this.introSaintOriginalPos;
       sprite.setPosition(pos.x, pos.y);
       sprite.body.reset(pos.x, pos.y);
+      this.applyNpcFeetCollision(sprite);
       sprite.anims.stop();
       sprite.setFrame(0);
       label?.setPosition(pos.x, pos.y - sprite.displayHeight / 2 - 8);
