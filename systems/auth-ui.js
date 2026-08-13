@@ -109,6 +109,14 @@ async function showSaveScreen() {
     saveScreen.style.display = "flex";
     saveMessage.textContent = "";
 
+    // "이어하기"를 누르면 두 버튼을 잠갔다가 성공 시에는 다시 풀어주지 않았다 -
+    // 처음 로그인 직후엔 항상 버튼이 멀쩡한 상태로 시작하니 문제가 없었지만,
+    // 이제 엔딩을 본 뒤 게임 도중에 이 화면으로 다시 돌아올 수 있게 되면서
+    // (EndingStoryScene.js) 그 상태가 남아있으면 "새 게임" 버튼이 계속 비활성인
+    // 채로 굳어버린다. 화면을 열 때마다 항상 눌러도 되는 상태로 리셋한다.
+    newGameButton.disabled = false;
+    continueButton.disabled = false;
+
     // 기본 선택은 새 게임
     setActiveMenuButton(newGameButton);
 

@@ -155,10 +155,19 @@ class EndingStoryScene extends Phaser.Scene {
   }
 
   advance() {
+    // 엔딩 타이틀까지 다 본 뒤 한 번 더 입력하면, 새 게임/이어하기를 고르는
+    // 세이브 화면으로 돌아간다.
+    if (this.endingTitleShown) { this.returnToSaveScreen(); return; }
     if (this.finished) return;
     this.index += 1;
     if (this.index < this.script.lines.length) { this.showLine(); return; }
     this.finishRoute();
+  }
+
+  returnToSaveScreen() {
+    if (this.returning) return;
+    this.returning = true;
+    window.showSaveScreen?.();
   }
 
   async finishRoute() {
@@ -240,9 +249,15 @@ class EndingStoryScene extends Phaser.Scene {
     if (textureKey && this.textures.exists(textureKey)) {
       const image = this.add.image(480, 270, textureKey).setOrigin(0.5);
       image.setScale(Math.max(960 / image.width, 540 / image.height));
-      return;
+    } else {
+      this.add.text(480, 225, title, { fontFamily: 'Galmuri11, sans-serif', fontSize: '44px', color: '#d9b66f' }).setOrigin(0.5);
+      this.add.text(480, 300, subtitle, { fontFamily: 'Galmuri11, sans-serif', fontSize: '23px', color: '#f1eadf' }).setOrigin(0.5);
     }
-    this.add.text(480, 225, title, { fontFamily: 'Galmuri11, sans-serif', fontSize: '44px', color: '#d9b66f' }).setOrigin(0.5);
-    this.add.text(480, 300, subtitle, { fontFamily: 'Galmuri11, sans-serif', fontSize: '23px', color: '#f1eadf' }).setOrigin(0.5);
+    this.add.text(480, 500, '[SPACE / ENTER] 메뉴로 돌아가기', {
+      fontFamily: 'Galmuri11, sans-serif', fontSize: '13px', color: '#cbb994',
+    }).setOrigin(0.5);
+    // 다음 입력(스페이스/엔터/클릭)은 advance()가 endingTitleShown을 보고
+    // 세이브 화면으로 돌려보낸다.
+    this.endingTitleShown = true;
   }
 }
