@@ -681,7 +681,13 @@ class MapScene extends Phaser.Scene {
 
     // 6-2. 마을 게시판(동상 왼쪽의 우체통 모양 오브젝트). 배경 그림에 이미 그려져 있는
     // 소품이라 별도 스프라이트 없이, 그 위치 근처에서만 상호작용 프롬프트가 뜨게 한다.
+    // NPC 이름표와 같은 스타일로 위에 이름을 띄워서 상호작용 가능한 지점이라는 걸 알려준다.
     this.boardPoint = this.currentMapKey === 'map_01_village' ? VILLAGE_BOARD_POS : null;
+    if (this.boardPoint) {
+      this.add.text(this.boardPoint.x, this.boardPoint.y - 60, '마을 게시판', {
+        fontSize: '30px', fill: '#ffffff',
+      }).setOrigin(0.5);
+    }
 
     // 7. 입력 및 UI
     this.cursors = this.input.keyboard.createCursorKeys();
