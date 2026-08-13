@@ -18,6 +18,12 @@ const boardMessage = document.getElementById("board-message");
 // 게시판을 닫을 때 MapScene에 알려서 캐릭터 조작을 다시 풀어주기 위한 콜백
 let onBoardCloseCallback = null;
 
+// 마을을 돌아다니다 게시판에 상호작용한 경우엔 열람만 가능하고(등록 폼 숨김),
+// 엔딩을 본 직후에 여는 경우에만 실제로 기록을 남길 수 있다(서버 쪽
+// submit_board_post도 엔딩 완료 여부를 검사하긴 하지만, 애초에 등록할 수 없는
+// 상황에서 폼을 보여주고 입력하게 했다가 서버 에러로 막는 건 사용자 경험이 나쁘다).
+let allowSubmitInCurrentSession = true;
+
 // 폼 제출 시 같이 저장할 현재 플레이 시간(초). openBoard()를 열 때 한 번 읽어서 고정한다.
 let currentPlayTimeSeconds = 0;
 
@@ -140,8 +146,9 @@ async function loadBoardPosts() {
 // 게시판 열기 / 닫기
 // =============================================
 
-async function openBoard(onClose) {
+async function openBoard(onClose, options) {
     onBoardCloseCallback = onClose || null;
+    allowSubmitInCurrentSession = options?.allowSubmit !== false;
 
     currentPlayTimeSeconds = window.GameSave?.state?.playTime || 0;
     boardPlayTimeDisplay.textContent =
@@ -149,6 +156,10 @@ async function openBoard(onClose) {
 
     boardCommentInput.value = "";
     boardMessage.textContent = "";
+
+    // 마을에서 그냥 게시판을 구경하는 거라면 등록 폼 자체를 숨겨서 열람 전용으로 만든다.
+    boardForm.style.display = allowSubmitInCurrentSession ? "" : "none";
+    boardPlayTimeDisplay.style.display = allowSubmitInCurrentSession ? "" : "none";
 
     boardScreen.style.display = "flex";
 
@@ -179,6 +190,8 @@ document.addEventListener("keydown", (event) => {
 
 boardForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+
+    if (!allowSubmitInCurrentSession) return;
 
     const comment = boardCommentInput.value.trim();
 

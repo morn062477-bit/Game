@@ -1243,13 +1243,15 @@ class MapScene extends Phaser.Scene {
 
   // --- 마을 게시판 열기 ---
   // board-ui.js(HTML 오버레이)에 실제 화면을 맡기고, 여기서는 캐릭터 조작만 잠갔다가
-  // 닫힐 때 콜백으로 되돌려받아 다시 풀어준다.
+  // 닫힐 때 콜백으로 되돌려받아 다시 풀어준다. 마을을 돌아다니다 여는 거라
+  // 열람만 가능하고(allowSubmit: false) 등록은 엔딩을 본 직후에만 할 수 있다
+  // (EndingStoryScene.js 참고).
   openVillageBoard() {
     this.isBoardOpen = true;
     this.interactText.setText('').setVisible(false);
     window.GameBoard?.openBoard(() => {
       this.isBoardOpen = false;
-    });
+    }, { allowSubmit: false });
   }
 
   startBodyConfessionIfAvailable(npcData) {

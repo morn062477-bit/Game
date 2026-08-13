@@ -216,19 +216,25 @@ class EndingStoryScene extends Phaser.Scene {
   }
 
   advance() {
-    // 엔딩 타이틀까지 다 본 뒤 한 번 더 입력하면, 새 게임/이어하기를 고르는
-    // 세이브 화면으로 돌아간다.
-    if (this.endingTitleShown) { this.returnToSaveScreen(); return; }
+    // 엔딩 타이틀까지 다 본 뒤 한 번 더 입력하면, 곧바로 로그인/세이브 화면으로
+    // 보내는 대신 방명록(마을 게시판)을 쓰게 하고, 그걸 닫아야 세이브 화면으로
+    // 돌아간다.
+    if (this.endingTitleShown) { this.openEndingBoard(); return; }
     if (this.finished) return;
     this.index += 1;
     if (this.index < this.script.lines.length) { this.showLine(); return; }
     this.finishRoute();
   }
 
-  returnToSaveScreen() {
+  openEndingBoard() {
     if (this.returning) return;
     this.returning = true;
-    window.showSaveScreen?.();
+    // 마을을 돌아다니다 여는 게시판(MapScene.openVillageBoard)은 열람만
+    // 되지만, 엔딩 직후에는 실제로 기록을 남길 수 있어야 하므로 allowSubmit을
+    // 켠 채로 연다(서버의 submit_board_post도 엔딩 완료 여부를 검사한다).
+    window.GameBoard?.openBoard(() => {
+      window.showSaveScreen?.();
+    }, { allowSubmit: true });
   }
 
   async finishRoute() {
@@ -314,11 +320,11 @@ class EndingStoryScene extends Phaser.Scene {
       this.add.text(480, 225, title, { fontFamily: 'Galmuri11, sans-serif', fontSize: '44px', color: '#d9b66f' }).setOrigin(0.5);
       this.add.text(480, 300, subtitle, { fontFamily: 'Galmuri11, sans-serif', fontSize: '23px', color: '#f1eadf' }).setOrigin(0.5);
     }
-    this.add.text(480, 500, '[SPACE / ENTER] 메뉴로 돌아가기', {
+    this.add.text(480, 500, '[SPACE / ENTER] 마을 게시판에 기록 남기기', {
       fontFamily: 'Galmuri11, sans-serif', fontSize: '13px', color: '#cbb994',
     }).setOrigin(0.5);
     // 다음 입력(스페이스/엔터/클릭)은 advance()가 endingTitleShown을 보고
-    // 세이브 화면으로 돌려보낸다.
+    // 게시판을 연다(openEndingBoard) - 게시판을 닫아야 세이브 화면으로 넘어간다.
     this.endingTitleShown = true;
   }
 }
