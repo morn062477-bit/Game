@@ -105,6 +105,16 @@ const ENDING_IMAGE_BY_ROUTE = {
   true: 'ending-true',
 };
 
+// 화자 이름 -> asset/davinci의 용의자 초상화 키. 다빈치코드 대전 상대 초상화와
+// 같은 그림을 재사용해서 "이 사람이 누구인지" 한눈에 알아보게 한다.
+const SPEAKER_TO_DAVINCI_ID = {
+  '농부': 'farmer',
+  '어부': 'fisher',
+  '사냥꾼': 'hunter',
+  '화가': 'painter',
+  '이장 부인': 'wife',
+};
+
 class EndingStoryScene extends Phaser.Scene {
   constructor() { super('EndingStoryScene'); }
   init(data) { this.route = data.route; }
@@ -115,6 +125,12 @@ class EndingStoryScene extends Phaser.Scene {
     this.load.image('ending-normal', `asset/endings/normal-ending.png?v=${v}`);
     this.load.image('ending-true', `asset/endings/true-ending.png?v=${v}`);
     this.load.image('farmer-confession', `asset/endings/farmer-confession.png?v=${v}`);
+    // 대화창 옆 초상화: 용의자는 다빈치코드에서 쓰는 asset/davinci 그림을 그대로,
+    // 탐정은 마을 기본 대화창과 같은 전용 일러스트를 쓴다.
+    Object.values(SPEAKER_TO_DAVINCI_ID).forEach((id) => {
+      this.load.image(`davinci-${id}`, `asset/davinci/${id}.png?v=${v}`);
+    });
+    this.load.image('dialogue-ill-탐정', `asset/characters/대화창 일러스트/detective_ill_transparent_v2.png?v=${v}`);
   }
 
   create() {
@@ -128,12 +144,45 @@ class EndingStoryScene extends Phaser.Scene {
       const sceneImage = this.add.image(480, 270, 'farmer-confession').setOrigin(0.5);
       sceneImage.setScale(Math.max(960 / sceneImage.width, 540 / sceneImage.height));
     }
-    this.add.rectangle(480, 430, 920, 185, 0x14100d, 0.98).setStrokeStyle(2, 0x9d7442);
-    this.nameText = this.add.text(55, 358, '', { fontFamily: 'Galmuri11, sans-serif', fontSize: '19px', color: '#e9c77b' });
-    this.bodyText = this.add.text(55, 397, '', {
-      fontFamily: 'Galmuri11, sans-serif', fontSize: '17px', color: '#f1eadf', wordWrap: { width: 850 }, lineSpacing: 7,
+
+    // 마을 기본 NPC 대화창과 같은 레이아웃/색(가죽색 배경 + 금색 테두리, 왼쪽에
+    // 정사각형 초상화, "[이름]" 이름표, 하단 중앙 ▼)으로 통일했다 - 예전엔 여기만
+    // 다른 색(진한 남색조) 대화창을 따로 쓰고 있었다.
+    const dialogBoxW = 960;
+    const dialogBoxH = 170;
+    const dialogBoxX = 0;
+    const dialogBoxY = 540 - dialogBoxH;
+    const DIALOG_FILL = 0x2a1f14;
+    const DIALOG_BORDER = 0xb8860b;
+    const portraitSize = dialogBoxH;
+    const textStartX = portraitSize + 24;
+
+    const box = this.add.graphics();
+    box.fillStyle(DIALOG_FILL, 0.95);
+    box.fillRect(dialogBoxX, dialogBoxY, dialogBoxW, dialogBoxH);
+    box.lineStyle(3, DIALOG_BORDER, 1);
+    box.lineBetween(dialogBoxX, dialogBoxY, dialogBoxX + dialogBoxW, dialogBoxY);
+
+    this.portraitSize = portraitSize;
+    const portraitBg = this.add.graphics();
+    portraitBg.fillStyle(DIALOG_FILL, 0.95);
+    portraitBg.fillRect(0, dialogBoxY, portraitSize, portraitSize);
+    portraitBg.lineStyle(3, DIALOG_BORDER, 1);
+    portraitBg.strokeRect(0, dialogBoxY, portraitSize, portraitSize);
+    this.portraitImage = this.add.image(portraitSize / 2, dialogBoxY + portraitSize / 2, 'dialogue-ill-탐정')
+      .setVisible(false);
+
+    this.nameText = this.add.text(textStartX, dialogBoxY + 16, '', {
+      fontFamily: 'Galmuri11, sans-serif', fontSize: '17px', color: '#e8b34d', fontStyle: 'bold',
     });
-    this.hintText = this.add.text(900, 505, '[SPACE / ENTER]', { fontFamily: 'Galmuri11, sans-serif', fontSize: '12px', color: '#998b78' }).setOrigin(1);
+    this.bodyText = this.add.text(textStartX, dialogBoxY + 48, '', {
+      fontFamily: 'Galmuri11, sans-serif', fontSize: '16px', color: '#f2e6cf',
+      wordWrap: { width: dialogBoxW - 20 - textStartX }, lineSpacing: 8,
+    });
+    this.hintText = this.add.text(dialogBoxX + dialogBoxW / 2, dialogBoxY + dialogBoxH - 14, '▼', {
+      fontFamily: 'Galmuri11, sans-serif', fontSize: '16px', color: '#e8b34d',
+    }).setOrigin(0.5, 1);
+
     this.input.keyboard.on('keydown-SPACE', () => this.advance());
     this.input.keyboard.on('keydown-ENTER', () => this.advance());
     this.input.on('pointerdown', () => this.advance());
@@ -152,6 +201,18 @@ class EndingStoryScene extends Phaser.Scene {
     const [speaker, text] = this.script.lines[this.index];
     this.nameText.setText(`[${speaker}]`);
     this.bodyText.setText(text);
+
+    // 화자에 맞는 초상화로 바꾼다 - 탐정은 전용 일러스트, 용의자는 asset/davinci
+    // 그림, 그 외(내레이션 등)는 초상화 없이 숨긴다.
+    const davinciId = SPEAKER_TO_DAVINCI_ID[speaker];
+    const texKey = speaker === '탐정' ? 'dialogue-ill-탐정' : (davinciId ? `davinci-${davinciId}` : null);
+    if (texKey && this.textures.exists(texKey)) {
+      this.portraitImage.setTexture(texKey).setVisible(true);
+      const src = this.portraitImage;
+      this.portraitImage.setScale(this.portraitSize / Math.max(src.width, src.height));
+    } else {
+      this.portraitImage.setVisible(false);
+    }
   }
 
   advance() {
