@@ -3,7 +3,7 @@
 -- 닉네임과 플레이타임은 클라이언트 입력을 신뢰하지 않고 profiles/saves에서 가져옵니다.
 
 create table if not exists public.profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
+  user_id uuid primary key references auth.users(id) on delete cascade,
   nickname text not null check (char_length(nickname) between 1 and 20),
   created_at timestamptz not null default now()
 );
@@ -14,7 +14,7 @@ drop policy if exists "profiles_select_own" on public.profiles;
 create policy "profiles_select_own"
 on public.profiles for select
 to authenticated
-using (id = auth.uid());
+using (user_id = auth.uid());
 
 create or replace function public.handle_new_user_profile()
 returns trigger
@@ -23,9 +23,9 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, nickname)
+  insert into public.profiles (user_id, nickname)
   values (new.id, coalesce(nullif(btrim(new.raw_user_meta_data ->> 'nickname'), ''), '플레이어'))
-  on conflict (id) do update
+  on conflict (user_id) do update
   set nickname = excluded.nickname;
   return new;
 end;
@@ -37,12 +37,12 @@ after insert on auth.users
 for each row execute function public.handle_new_user_profile();
 
 -- 트리거 설치 전에 가입한 기존 사용자도 회원가입 당시 metadata의 닉네임으로 채웁니다.
-insert into public.profiles (id, nickname)
+insert into public.profiles (user_id, nickname)
 select
   u.id,
   coalesce(nullif(btrim(u.raw_user_meta_data ->> 'nickname'), ''), '플레이어')
 from auth.users u
-on conflict (id) do nothing;
+on conflict (user_id) do nothing;
 
 create table if not exists public.board_posts (
   id bigint generated always as identity primary key,
@@ -103,7 +103,7 @@ begin
   select p.nickname
   into profile_nickname
   from public.profiles p
-  where p.id = current_user_id;
+  where p.user_id = current_user_id;
 
   if profile_nickname is null or btrim(profile_nickname) = '' then
     raise exception '회원가입 닉네임을 찾을 수 없습니다.';
