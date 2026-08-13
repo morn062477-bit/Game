@@ -145,31 +145,31 @@ const FINAL_GATHER_SCRIPT = [
     {
         speaker: '사냥꾼',
         text: '이제 조사할 만큼 한 것 같은데.\n결론을 내릴 때가 되지 않았소?',
-        portraitTexKey: 'npc-hunter'
+        portraitTexKey: 'davinci-hunter'
     },
 
     {
         speaker: '어부',
         text: '나도 더는 이 일 때문에 일을 미룰 수 없소.\n범인이 누군지 알았다면 말해주시오.',
-        portraitTexKey: 'npc-fisher'
+        portraitTexKey: 'davinci-fisher'
     },
 
     {
         speaker: '이장 부인',
         text: '모두의 이야기를 들으셨으니\n이제 답을 가지고 계시겠죠.',
-        portraitTexKey: 'npc-wife'
+        portraitTexKey: 'davinci-wife'
     },
 
     {
         speaker: '화가',
         text: '…….',
-        portraitTexKey: 'npc-painter'
+        portraitTexKey: 'davinci-painter'
     },
 
     {
         speaker: '농부',
         text: '탐정님.\n이제 누구의 짓인지 알아낸 겁니까?',
-        portraitTexKey: 'npc-farmer'
+        portraitTexKey: 'davinci-farmer'
     },
 
     {
@@ -277,6 +277,13 @@ class MapScene extends Phaser.Scene {
     CLUE_SUSPECT_ORDER.forEach((npcId) => {
       this.load.image(`clue-${npcId}`, `asset/clues/${npcId}.png?v=${v}`);
       this.load.image(`clue-hover-${npcId}`, `asset/clues/${npcId}_hovor.png?v=${v}`);
+      // 단서 5개를 다 모으고 마을에 집합하는 대화(FINAL_GATHER_SCRIPT)에서 걷기
+      // 스프라이트 대신 다빈치코드와 같은 초상화를 보여준다. EndingStoryScene 등
+      // 다른 씬이 같은 키로 이미 로드해뒀을 수 있으니(텍스처는 게임 전체에서
+      // 공유됨) 중복으로 다시 불러오지 않게 존재 여부를 먼저 확인한다.
+      if (!this.textures.exists(`davinci-${npcId}`)) {
+        this.load.image(`davinci-${npcId}`, `asset/davinci/${npcId}.png?v=${v}`);
+      }
     });
 
     // 정적 장식: 항구 배경 그림에서 배만 오려낸 그림(배경을 투명하게 뺀 것). 배 두 척.
