@@ -201,6 +201,11 @@ const NPC_DISPLAY_NAME = {
 // 최종 추리로 이어지는 5명의 용의자. 화면 오른쪽 위 단서 UI에 이 순서대로 표시한다.
 const CLUE_SUSPECT_ORDER = ['wife', 'hunter', 'farmer', 'painter', 'fisher'];
 
+// 마을 광장의 게시판(우체통 모양 소품) 위치. deco_village_statue(2019.94, 1297.27,
+// 222x502.7) 기준 왼쪽으로 떨어진 지점을 배경 그림을 보고 눈대중으로 잡았다.
+const VILLAGE_BOARD_POS = { x: 1740, y: 1500 };
+const VILLAGE_BOARD_RADIUS = 130;
+
 // npc id -> 대화창 초상화용 일러스트 텍스처 키(preload에서 "dialogue-ill-*"로 로드해둔 것).
 // 여기 없는 npc(예: farmer_baby, village_woman1/2)는 기존처럼 걷기 스프라이트를 대신 쓴다.
 const DIALOGUE_ILLUST_BY_NPC = {
@@ -667,6 +672,10 @@ class MapScene extends Phaser.Scene {
     // Portals 레이어에 찍어두면 그 위치에 자동으로 생긴다.
     this.setupLights(map);
 
+    // 6-2. 마을 게시판(동상 왼쪽의 우체통 모양 오브젝트). 배경 그림에 이미 그려져 있는
+    // 소품이라 별도 스프라이트 없이, 그 위치 근처에서만 상호작용 프롬프트가 뜨게 한다.
+    this.boardPoint = this.currentMapKey === 'map_01_village' ? VILLAGE_BOARD_POS : null;
+
     // 7. 입력 및 UI
     this.cursors = this.input.keyboard.createCursorKeys();
     this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
@@ -744,6 +753,7 @@ class MapScene extends Phaser.Scene {
 
     this.isTalking = false;
     this.isCutscene = false;
+    this.isBoardOpen = false;
     this.nearNPC = null;
     this.lastStepSoundTime = 0;
 
@@ -1048,6 +1058,12 @@ class MapScene extends Phaser.Scene {
   }
 
   update() {
+    // 게시판 화면(HTML 오버레이)이 열려있는 동안은 그 안의 입력칸/버튼이 조작을
+    // 대신하므로 캐릭터는 완전히 멈춰둔다.
+    if (this.isBoardOpen) {
+      this.player.body.setVelocity(0);
+      return;
+    }
     // 컷씬 중에는 물리 바디가 꺼져있어서(body.enable = false) body.center가 갱신되지
     // 않는다. 그 상태로 아래 walkable 체크를 하면 컷씬 시작 전 위치 기준으로 "벗어났다"고
     // 오판해서, 컷씬에서 tween으로 옮긴 위치를 매 프레임 lastValidPos(꺼지기 전 위치)로
@@ -1185,9 +1201,29 @@ class MapScene extends Phaser.Scene {
           this.startDialogue(npcData);
         }
       }
+    } else if (
+      this.boardPoint
+      && Phaser.Math.Distance.Between(this.player.x, this.player.y, this.boardPoint.x, this.boardPoint.y) < VILLAGE_BOARD_RADIUS
+    ) {
+      this.interactText.setText('[SPACE] 마을 게시판 확인하기').setVisible(true);
+
+      if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
+        this.openVillageBoard();
+      }
     } else {
       this.interactText.setText('').setVisible(false);
     }
+  }
+
+  // --- 마을 게시판 열기 ---
+  // board-ui.js(HTML 오버레이)에 실제 화면을 맡기고, 여기서는 캐릭터 조작만 잠갔다가
+  // 닫힐 때 콜백으로 되돌려받아 다시 풀어준다.
+  openVillageBoard() {
+    this.isBoardOpen = true;
+    this.interactText.setText('').setVisible(false);
+    window.GameBoard?.openBoard(() => {
+      this.isBoardOpen = false;
+    });
   }
 
   startBodyConfessionIfAvailable(npcData) {
