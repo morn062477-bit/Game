@@ -274,6 +274,13 @@ class DaVinciCodeScene extends Phaser.Scene {
     this.menuOpen = false;
     this.rulesOpen = false;
 
+    // 덱에 흑/백이 둘 다 남아있을 때만 실제로 물어본다(daVinciLogic.js의
+    // HumanInputStrategy.chooseDrawColor 참고 - 한쪽이 다 떨어지면 안 물어보고
+    // 알아서 남은 색으로 진행하니 여기까지 안 온다).
+    this.humanStrategy.onNeedDrawColor = () => {
+      this.pendingUIUpdate = () => this.showDrawColorPicker();
+      this.applyPendingUIUpdateIfIdle();
+    };
     this.humanStrategy.onNeedGuess = (obs) => {
       this.pendingUIUpdate = () => {
         this.mode = 'pick_slot';
@@ -632,6 +639,18 @@ class DaVinciCodeScene extends Phaser.Scene {
 
         this.time.delayedCall(1300, () => {
           if (newIndex === -1) { finish(); return; }
+          if (side === 'player' && this._pendingDrawColorPick) {
+            // 이미 흑/백 더미를 직접 골라둔 상태(showDrawColorPicker) - 그때 고른
+            // 카드를 그대로 이어서 손패로 날린다. 여기서 새로 카드 더미를 또
+            // 펼쳐서 한 번 더 고르게 하면 같은 걸 두 번 뽑는 것처럼 보인다.
+            const pending = this._pendingDrawColorPick;
+            this._pendingDrawColorPick = null;
+            this.resolvePendingDrawPick(pending, side, newIndex, () => {
+              this.setGuide('');
+              finish();
+            });
+            return;
+          }
           if (side === 'player') this.setGuide('뽑을 카드를 고르세요');
           this.playDrawPickSequence(side, newIndex, () => {
             this.setGuide('');
@@ -1044,6 +1063,108 @@ class DaVinciCodeScene extends Phaser.Scene {
       });
     };
     step();
+  }
+
+  // 흑/백이 둘 다 남아있을 때 사람 차례에서 실제로 어느 색을 뽑을지 직접 고르게
+  // 하는 화면. daVinciLogic.js의 HumanInputStrategy.chooseDrawColor가 이 UI의
+  // 결과(resolveDrawColor)를 기다렸다가 그 색의 블록만 덱에서 골라 뽑는다 -
+  // 예전엔 카드 뒷면 색이 실제 뽑히는 카드와 무관한 장식이라 "흑을 골랐는데
+  // 백이 나온다"는 오해를 샀는데, 이제는 여기서 고른 색이 실제로 그대로 뽑힌다.
+  showDrawColorPicker() {
+    const count = this.engine ? this.engine.deck.length : 0;
+    if (count === 0) { this.humanStrategy.resolveDrawColor(null); return; }
+    const centerX = 600;
+    const centerY = MAT_Y + MAT_H / 2;
+    const rowY = centerY - TILE_H / 2;
+    const step = count > 1 ? TILE_W * 0.5 : TILE_W + 14;
+    const startX = centerX - ((count - 1) * step + TILE_W) / 2;
+
+    const group = this.add.container(0, 0);
+    group.setDepth(920);
+    this.dynamicLayer.add(group);
+    const cards = [];
+    for (let i = 0; i < count; i++) {
+      const x = startX + i * step;
+      const color = i % 2 === 0 ? Color.BLACK : Color.WHITE;
+      const back = this.makeDeckCardBack(x, rowY, color);
+      group.add(back);
+      cards.push({
+        back, x, y: rowY, cx: x + TILE_W / 2, cy: rowY + TILE_H / 2, color,
+      });
+    }
+    cards.forEach((c, i) => {
+      this.tweens.add({
+        targets: c.back, y: c.cy - 14, duration: 220, delay: i * 70, yoyo: true, ease: 'Sine.easeOut',
+      });
+    });
+
+    this.setGuide('뽑을 카드 더미의 색(흑/백)을 고르세요');
+
+    this.time.delayedCall(500, () => {
+      cards.forEach((c, i) => {
+        const hit = this.add.zone(c.x, c.y, TILE_W, TILE_H).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+        hit.on('pointerdown', () => {
+          cards.forEach((cc) => { if (cc.hit) cc.hit.destroy(); });
+          // 고르지 않은 카드들은 사라지고, 고른 카드만 남겨서 실제로 그 색의
+          // 블록이 뽑혀 손패로 날아갈 때까지(handleEvent의 'draw' 처리) 대기시킨다.
+          cards.forEach((cc, ci) => {
+            if (ci === i) return;
+            this.tweens.add({
+              targets: cc.back, alpha: 0, y: cc.cy - 30, duration: 300, ease: 'Sine.easeIn',
+              onComplete: () => cc.back.destroy(),
+            });
+          });
+          this._pendingDrawColorPick = { group, card: cards[i] };
+          this.setGuide('');
+          this.humanStrategy.resolveDrawColor(cards[i].color);
+        });
+        hit.on('pointerover', () => {
+          c.back.setDepth(950);
+          this.tweens.add({ targets: c.back, scaleX: 1.18, scaleY: 1.18, duration: 120, ease: 'Sine.easeOut' });
+        });
+        hit.on('pointerout', () => {
+          c.back.setDepth(920);
+          this.tweens.add({ targets: c.back, scaleX: 1, scaleY: 1, duration: 120, ease: 'Sine.easeOut' });
+        });
+        c.hit = hit;
+        group.add(hit);
+      });
+    });
+  }
+
+  // showDrawColorPicker()에서 이미 골라둔 카드를, 실제로 그 색의 블록이 뽑혀
+  // 손패에 들어온 뒤 이어서 날려 보낸다(playDrawPickSequence의 pickOne 뒷부분과
+  // 거의 동일 - 앞부분의 "더미를 펼쳐서 고르기"는 이미 끝났으므로 생략한다).
+  resolvePendingDrawPick(pending, side, newIndex, onComplete) {
+    const hand = side === 'bot' ? this.bot.hand : this.human.hand;
+    const newSlot = hand.slots[newIndex];
+    const { x: targetX, y: targetY } = this.tileScreenPos(side, newIndex, false);
+    const { group, card: chosen } = pending;
+
+    // 고른 색 그대로 뽑혔어야 하지만(엔진이 보장), 만약을 대비해 실제 색으로
+    // 한 번 더 맞춰준다.
+    const realBackTexture = newSlot.block.color === Color.BLACK ? 'cardBackBlack' : 'cardBackWhite';
+    chosen.back.faceImage?.setTexture(realBackTexture);
+
+    this.tweens.add({
+      targets: chosen.back,
+      x: targetX + TILE_W / 2,
+      y: targetY + TILE_H / 2,
+      scaleX: 1,
+      scaleY: 1,
+      duration: 500,
+      delay: 200,
+      ease: 'Back.easeIn',
+      onComplete: () => {
+        chosen.back.destroy();
+        group.destroy();
+        const prevSet = side === 'bot'
+          ? (this._prevBotSlotIds || (this._prevBotSlotIds = new Set()))
+          : (this._prevHumanSlotIds || (this._prevHumanSlotIds = new Set()));
+        prevSet.add(newSlot.slotId);
+        this.time.delayedCall(200, () => this.reflowHandMerge(side, onComplete));
+      },
+    });
   }
 
   // 남은 카드 더미에서 카드를 뽑을 때, 더미를 섞어서 가운데에 한 줄로 펼친 뒤
@@ -1687,7 +1808,7 @@ class DaVinciCodeScene extends Phaser.Scene {
     g.strokeRect(x, y, w, h);
     // 도트 폰트라 fontSize를 13px로 바로 그리면 "메뉴"/"나가기"/"규칙" 같은 한글이
     // 깨져 보인다 - 작게(9px) 그린 뒤 확대(setScale)한다.
-    const text = this.add.text(x + w / 2, y + h / 2, label, { fontFamily: FONT, fontSize: '9px', color: '#f2e6cf' }).setOrigin(0.5).setScale(1.5);
+    const text = this.add.text(x + w / 2, y + h / 2, label, { fontFamily: FONT, fontSize: '10px', color: '#f2e6cf' }).setOrigin(0.5).setScale(1.5);
     const children = [g, text];
     const hitZone = this.add.zone(x, y, w, h).setOrigin(0, 0).setInteractive({ useHandCursor: onClick != null });
     if (onClick) hitZone.on('pointerdown', onClick);

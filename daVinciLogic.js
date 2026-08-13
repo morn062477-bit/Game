@@ -146,6 +146,11 @@ class Strategy {
   async continueAfterCorrect(_obs) { throw new Error('continueAfterCorrect not implemented'); }
   chooseTieBreakSide() { return TieBreak.BLACK_LEFT; }
 
+  // 이번 턴에 뽑을 카드의 색을 흑/백 중에 고를 수 있게 할지 결정한다. null을 반환하면
+  // (기본값) 색 상관없이 덱에서 무작위로 뽑는다 - 봇은 이 기본 동작을 그대로 쓴다.
+  // 사람 전략(HumanInputStrategy)만 실제로 UI에 물어봐서 색을 고르게 한다.
+  async chooseDrawColor(_deck) { return null; }
+
   // ---- 아이템 스킬용 훅 (기본은 전부 무동작 - 스킬 없는 전략은 신경 안 써도 됨) ----
 
   // 대전 시작(초기 패 분배 직후) 1회 호출. '엿보기'처럼 시작하자마자 발동하는 스킬용.
@@ -390,6 +395,28 @@ class HumanInputStrategy extends Strategy {
     });
   }
 
+  // 덱에 흑/백이 둘 다 남아있으면 실제로 골라야 하므로 Scene에 UI로 물어본다.
+  // 한쪽 색이 이미 다 떨어졌으면 고를 게 없으니 곧바로 남은 색으로 진행한다.
+  chooseDrawColor(deck) {
+    const hasBlack = deck.some((b) => b.color === Color.BLACK);
+    const hasWhite = deck.some((b) => b.color === Color.WHITE);
+    if (hasBlack && hasWhite) {
+      return new Promise((resolve) => {
+        this._resolveDrawColor = resolve;
+        if (this.onNeedDrawColor) this.onNeedDrawColor();
+      });
+    }
+    return Promise.resolve(hasBlack ? Color.BLACK : Color.WHITE);
+  }
+
+  resolveDrawColor(color) {
+    if (this._resolveDrawColor) {
+      const r = this._resolveDrawColor;
+      this._resolveDrawColor = null;
+      r(color);
+    }
+  }
+
   continueAfterCorrect(obs) {
     return new Promise((resolve) => {
       this._resolveContinue = resolve;
@@ -529,6 +556,17 @@ class MatchEngine {
     return slot.block.number;
   }
 
+  // color가 주어지면 덱에서 그 색의 블록을 하나 골라 꺼낸다(숫자는 여전히 무작위 -
+  // 덱이 이미 섞여 있으므로 해당 색의 첫 번째 매치를 집는 것으로 충분히 무작위다).
+  // color가 없거나 그 색이 이미 소진됐으면 기존처럼 그냥 맨 뒤에서 뽑는다.
+  _takeFromDeck(color) {
+    if (color) {
+      const idx = this.deck.findIndex((b) => b.color === color);
+      if (idx >= 0) return this.deck.splice(idx, 1)[0];
+    }
+    return this.deck.pop();
+  }
+
   _dealInitialHands() {
     for (let i = 0; i < 2; i++) {
       const p = this.players[i];
@@ -608,7 +646,8 @@ class MatchEngine {
 
     let drawnIndex = null;
     if (this.deck.length > 0) {
-      const block = this.deck.pop();
+      const colorChoice = await strat.chooseDrawColor(this.deck.slice());
+      const block = this._takeFromDeck(colorChoice);
       drawnIndex = active.insertDrawnBlock(block);
       await this._emit('draw', { player: active.name, block: blockLabel(block) });
     } else {
