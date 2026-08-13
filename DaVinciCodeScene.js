@@ -2,9 +2,10 @@
 // BOT_ITEM_ASSIGNMENT, BOT_NAMES, ITEM_SKILLS는 daVinciLogic.js가 만드는 전역 값들이다.
 // (index.html에서 daVinciLogic.js를 이 파일보다 먼저 로드해야 한다.)
 
-// 카드 전체 크기를 1.2배로 키웠다(요청사항) - 기존 58x84 기준에 CARD_SCALE만
-// 곱해서 카드 관련 치수가 전부 같이 늘어나게 한다.
-const CARD_SCALE = 1.2;
+// 카드 전체 크기. 기존 58x84 기준에 CARD_SCALE만 곱해서 내 패/상대 패 등
+// 카드 관련 치수가 전부 같이(통일되게) 커지거나 작아진다 - 1.2배로 키웠던 걸
+// 너무 크다는 피드백에 1.0배로 다시 줄였다.
+const CARD_SCALE = 1.0;
 const TILE_W = Math.round(58 * CARD_SCALE);
 const TILE_H = Math.round(84 * CARD_SCALE);
 const FONT = 'Galmuri9, monospace';
