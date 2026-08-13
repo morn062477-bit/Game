@@ -149,9 +149,15 @@ class DaVinciCodeScene extends Phaser.Scene {
     this.load.image('portraitPlayer', `asset/characters/용의자들-주인공/davinci_main.png?v=${v}`);
     // 상대(용의자) 초상화. asset/davinci/<npcId>.png 규칙으로 올라와 있다 - 그림이
     // 없는 용의자는 이 목록에 없으니 기존처럼 실루엣 placeholder로 대체된다.
+    // 텍스처 키에 npcId를 넣어야 한다 - Phaser TextureManager는 씬을 새로 시작해도
+    // 게임 전체에서 공유되는데, 키가 고정값('portraitOpponent')이면 한 번 어떤
+    // 용의자로 로드된 다음부터는 "이미 존재하는 키"라 다른 용의자로 다시 불러와도
+    // 조용히 무시되고 예전 그림이 계속 남아있었다(예: farmer로 한 번 플레이하면
+    // 그 뒤로 painter를 상대해도 계속 farmer 얼굴이 뜨는 버그).
     const OPPONENT_PORTRAIT_IDS = ['wife', 'hunter', 'farmer', 'painter', 'fisher'];
-    if (OPPONENT_PORTRAIT_IDS.includes(this.npcId)) {
-      this.load.image('portraitOpponent', `asset/davinci/${this.npcId}.png?v=${v}`);
+    this.opponentPortraitKey = OPPONENT_PORTRAIT_IDS.includes(this.npcId) ? `portraitOpponent-${this.npcId}` : null;
+    if (this.opponentPortraitKey) {
+      this.load.image(this.opponentPortraitKey, `asset/davinci/${this.npcId}.png?v=${v}`);
     }
 
     // 배경(원목 테이블) / 매트(초록 카드 매트) / 카드 뒷면 디자인.
@@ -173,7 +179,7 @@ class DaVinciCodeScene extends Phaser.Scene {
     // 초상화 이미지 배경을 자동으로 투명하게 만든다 - 상대/내 초상화 그림을 새로 넣을
     // 때마다 매번 수동으로 배경을 지워줄 필요 없이, 여기 등록해두기만 하면 된다.
     this.makeBackgroundTransparent('portraitPlayer');
-    this.makeBackgroundTransparent('portraitOpponent');
+    if (this.opponentPortraitKey) this.makeBackgroundTransparent(this.opponentPortraitKey);
 
     // 마을 배경음악(bgm-main과, 맵에 따라 같이 깔려있었을 bgm-water/bgm-port)은
     // 멈추고 다빈치코드 전용 배경음악으로 바꿔서 튼다.
@@ -201,7 +207,7 @@ class DaVinciCodeScene extends Phaser.Scene {
     // 12px에 정확히 그리고, 다 그려진 텍스트 객체 자체를 2배로 확대(setScale)한다 -
     // 래스터라이즈 이후에 확대하는 거라 글자가 깨지지 않는다. wordWrap 너비는
     // 확대 후 폭이 원래와 같아지도록 절반(260)으로 줄여둔다.
-    this.drawPortraitBox(0, 0, PORTRAIT_W, TOP_H, 0x2a1f14, 0xb8860b, 'portraitOpponent');
+    this.drawPortraitBox(0, 0, PORTRAIT_W, TOP_H, 0x2a1f14, 0xb8860b, this.opponentPortraitKey);
     this.drawDialogueBox(PORTRAIT_W + 10, 10, 1200 - PORTRAIT_W - 24, TOP_H - 20);
     // 대화 텍스트와 같은 이유로(Galmuri는 도트 폰트라 fontSize를 바로 키우면 글자가
     // 깨진다) 작게 그린 뒤 통째로 확대한다.
