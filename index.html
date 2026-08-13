@@ -129,34 +129,29 @@
             <button id="board-close" type="button" aria-label="닫기">×</button>
         </div>
 
-        <ul id="board-list"></ul>
-
         <form id="board-form">
-
-            <input
-                id="board-name"
-                type="text"
-                placeholder="이름"
-                maxlength="20"
-                required
-            >
-
-            <p id="board-playtime-display"></p>
-
             <textarea
                 id="board-comment"
-                placeholder="한마디 남기기"
+                placeholder="리뷰 남기기"
                 maxlength="200"
                 required
             ></textarea>
 
             <button type="submit">
-                게시글 남기기
+                기록 등록하기
             </button>
-
         </form>
 
+        <p id="board-playtime-display"></p>
+
         <p id="board-message"></p>
+
+        <div id="board-list-header">
+            <h2>방명록</h2>
+            <span>최신 작성순</span>
+        </div>
+
+        <ul id="board-list"></ul>
 
     </div>
 
