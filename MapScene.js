@@ -1333,8 +1333,8 @@ startFinalGatherDialogue() {
     const uiX = this.uiX, uiY = this.uiY, uiLen = this.uiLen, uiFont = this.uiFont;
     const cam = this.cameras.main;
     const src = this.textures.get(texKey).getSourceImage();
-    const targetW = uiLen(cam.width * 0.5);
-    const targetH = uiLen(cam.height * 0.62);
+    const targetW = uiLen(cam.width * 0.82);
+    const targetH = uiLen(cam.height * 0.78);
     const scale = Math.min(targetW / src.width, targetH / src.height);
     const dispW = src.width * scale;
     const dispH = src.height * scale;
