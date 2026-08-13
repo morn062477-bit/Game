@@ -1004,10 +1004,16 @@ class MapScene extends Phaser.Scene {
         // 보트(충돌 판정이 훨씬 큼)를 탄 상태로는 NPC 근처에 몸이 닿기도 전에
         // 막혀버려서 상호작용 거리(140px) 안으로 들어오지 못하는 문제가 있었다.
         // 발밑 좁은 영역만 막히게 줄인다.
-        const bodyW = npc.width * 0.4;
-        const bodyH = npc.height * 0.2;
+        // 주의: 플레이어(동적 바디)는 setOffset에 넘긴 값을 Phaser가 매 프레임
+        // 스케일만큼 곱해서 적용하므로 원본(스케일 전) width/height를 써야 하지만,
+        // NPC는 정적 바디(physics.add.existing(npc, true))라 그런 자동 보정이
+        // 없다 - 여기 넘기는 값은 이미 화면에 보이는 크기(displayWidth/Height)
+        // 기준이어야 한다. npc.width/height(스케일 적용 전 원본)를 그대로 쓰면
+        // 충돌 박스가 실제 캐릭터보다 훨씬 아래/엉뚱한 위치에 잡힌다.
+        const bodyW = npc.displayWidth * 0.4;
+        const bodyH = npc.displayHeight * 0.2;
         npc.body.setSize(bodyW, bodyH);
-        npc.body.setOffset((npc.width - bodyW) / 2, npc.height - bodyH);
+        npc.body.setOffset((npc.displayWidth - bodyW) / 2, npc.displayHeight - bodyH);
       }
       this.npcGroup.add(npc);
 
